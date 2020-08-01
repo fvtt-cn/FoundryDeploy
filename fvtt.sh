@@ -152,6 +152,21 @@ information -n "FVTT 密码：" && cecho -c 'cyan' $password
 information -n "Web 文件管理器：" && [ "$fbyn" != "n" -a "$fbyn" != "N" ] && cecho -c 'cyan' "启用" || cecho -c 'cyan' "禁用"
 [ -n "$fbdomain" ] && information -n "Web 文件管理器域名：" && cecho -c 'cyan' $fbdomain
 
+# 检查端口占用
+if test "$domain" || test "$fbdomain"; then
+    # 使用域名，检查 80/443
+    (echo >/dev/tcp/localhost/80) &>/dev/null && { error "80 端口被占用，无法使用域名部署" ; exit 2 ; } || information "80 端口未占用，可部署 HTTP"
+    (echo >/dev/tcp/localhost/443) &>/dev/null && { error "443 端口被占用，无法使用域名部署" ; exit 2 ; } || information "443 端口未占用，可部署 HTTPS"
+fi
+if [ -z "$domain" ]; then
+    # 检查 30000
+    (echo >/dev/tcp/localhost/$fvttport) &>/dev/null && { error "${fvttport} 端口被占用，无法部署" ; exit 2 ; } || information "${fvttport} 端口未占用，可部署"
+fi
+if [ "$fbyn" != "n" -a "$fbyn" != "N" -a -z "$fbdomain" ]; then
+    # 检查 30001
+    (echo >/dev/tcp/localhost/$fbport) &>/dev/null && { error "${fbport} 端口被占用，无法部署" ; exit 2 ; } || information "${fbport} 端口未占用，可部署"
+fi
+
 read -s -p "按下回车确认参数正确，否则按下 Ctrl+C 退出"
 echo
 echoLine
