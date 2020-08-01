@@ -19,6 +19,10 @@ fbport="30001"
 # 杂项，此处直接使用 PWD 有一定风险
 caddyfile="$PWD/Caddyfile"  # Caddy 配置
 fbdatabase="$PWD/filebrowser.db" # FileBrowser 数据库
+caddycpu=256 # Caddy CPU 使用百分比
+fvttcpu=1024 # FoundryVTT CPU 使用百分比
+fbcpu=256 # FileBrowser CPU 使用百分比
+fbmemory="256M" # FileBrowser 内存使用上限，超过则 OOM Kill 重启容器
 
 # 以下为 cecho, credit to Tux
 # ---------------------
@@ -247,13 +251,13 @@ echoLine
 
 # 启动容器
 # Caddy
-caddyrun="docker run -d --name=${caddyname} --restart=unless-stopped --network=${bridge} -v ${caddyvolume}:/data -v ${caddyfile}:/etc/caddy/Caddyfile -p ${fvttport}:${fvttport} -p ${fbport}:${fbport} "
+caddyrun="docker run -d --name=${caddyname} --restart=unless-stopped --network=${bridge} -c=${caddycpu} -v ${caddyvolume}:/data -v ${caddyfile}:/etc/caddy/Caddyfile -p ${fvttport}:${fvttport} -p ${fbport}:${fbport} "
 [ -n "$domain" -o -n "$fbdomain" ] && caddyrun="${caddyrun}-p 80:80 -p 443:443 "
 caddyrun="${caddyrun}caddy"
 eval $caddyrun && docker container inspect $caddyname >/dev/null 2>&1 && success "Caddy 容器启动成功" || { error "错误：Caddy 容器启动失败" ; exit 7 ; }
 
 # FVTT
-fvttrun="docker run -d --name=${fvttname} --restart=unless-stopped --network=${bridge} -v ${fvttvolume}:/data -e FOUNDRY_USERNAME='${username}' -e FOUNDRY_PASSWORD='${password}' "
+fvttrun="docker run -d --name=${fvttname} --restart=unless-stopped --network=${bridge} -c=${fvttcpu} -v ${fvttvolume}:/data -e FOUNDRY_USERNAME='${username}' -e FOUNDRY_PASSWORD='${password}' "
 [ -n "$version" ] && fvttrun="${fvttrun}-e FOUNDRY_VERSION=${version} "
 [ -n "$adminpass" ] && fvttrun="${fvttrun}-e FOUNDRY_ADMIN_KEY=${adminpass} "
 fvttrun="${fvttrun} felddy/foundryvtt:release"
@@ -263,7 +267,7 @@ eval $fvttrun && docker container inspect $fvttname >/dev/null 2>&1 && success "
 if [ "$fbyn" != "n" -a "$fbyn" != "N" ]; then
     # 提前创建/清空数据库，但只在安装过程中
     [ -z "$@" ] && truncate -s 0 $fbdatabase
-    fbrun="docker run -d --name=${fbname} --restart=unless-stopped --network=${bridge} -v ${fvttvolume}:/srv -v ${fbdatabase}:/database.db filebrowser/filebrowser"
+    fbrun="docker run -d --name=${fbname} --restart=unless-stopped --network=${bridge} -c=${fbcpu} -m=${fbmemory} -v ${fvttvolume}:/srv -v ${fbdatabase}:/database.db filebrowser/filebrowser"
     eval $fbrun && docker container inspect $fbname >/dev/null 2>&1 && success "FileBrowser 容器启动成功" || { error "FileBrowser 容器启动失败" ; exit 7 ; }
 fi
 echoLine
