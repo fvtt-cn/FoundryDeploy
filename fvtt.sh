@@ -272,7 +272,7 @@ recreate() {
 }
 
 remove() {
-    error -n "警告！！！使用该命令将删除所有容器和网桥，但是存档、文件等数据将保留，不过仍可能导致意外后果！" && read -p "[Y/n]：" rmyn
+    error -n "警告！！！使用该命令将删除所有容器和网桥，但是存档、文件等数据将保留，不过仍可能导致意外后果！" && read -p "[y/N]：" rmyn
     if [ "$rmyn" == "y" -o "$rmyn" == "Y" ]; then
         warning "删除中...（等待5秒，按下 Ctrl+C 立即中止）"
         sleep 3
@@ -280,7 +280,7 @@ remove() {
         # 移除容器
         docker rm -f $fvttname
         docker rm -f $caddyname
-        docker rm -f $filebr
+        docker rm -f $fbname
 
         # 移除网桥
         docker network rm $bridge
@@ -290,22 +290,22 @@ remove() {
 }
 
 restart() {
-    error -n "警告！！！使用该命令将重启所有容器，可能导致意外后果！" && read -p "[Y/n]：" restartyn
+    error -n "警告！！！使用该命令将重启所有容器，可能导致意外后果！" && read -p "[y/N]：" restartyn
     if [ "$restartyn" == "y" -o "$restartyn" == "Y" ]; then
         warning "重启中...（等待5秒，按下 Ctrl+C 立即中止）"
         sleep 3
 
-        docker restart fvtt
-        docker restart filebr
-        docker restart caddy
+        docker restart $fvttname
+        docker restart $caddyname
+        docker restart $fbname
 
         success "重启完毕！"
     fi
 }
 
 clear() {
-    error -n "警告！！！使用该命令将清除所有内容，包括 Caddy、 FVTT 所有游戏、存档、文件！" && read -p "[Y/n]：" cleanyn && [ "$cleanyn" == "y" -o "$cleanyn" == "Y" ] && \
-     error -n "再次警告！！！使用该命令将清除所有内容，包括 Caddy、 FVTT 所有游戏、存档、文件！" && read -p "[Y/n]：" cleanyn
+    error -n "警告！！！使用该命令将清除所有内容，包括 Caddy、 FVTT 所有游戏、存档、文件！" && read -p "[y/N]：" cleanyn && [ "$cleanyn" == "y" -o "$cleanyn" == "Y" ] && \
+     error -n "再次警告！！！使用该命令将清除所有内容，包括 Caddy、 FVTT 所有游戏、存档、文件！" && read -p "[y/N]：" cleanyn
     if [ "$cleanyn" == "y" -o "$cleanyn" == "Y" ]; then
         warning "清除中...（等待5s，按下 Ctrl+C 立即中止）"
         sleep 3
@@ -313,7 +313,7 @@ clear() {
         # 移除容器
         docker rm -f $fvttname
         docker rm -f $caddyname
-        docker rm -f $filebr
+        docker rm -f $fbname
 
         # 移除网桥、挂载
         docker network rm $bridge
