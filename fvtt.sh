@@ -268,6 +268,7 @@ fi
 
 recreate() {
     # 空，进安装流程
+    :
 }
 
 remove() {
