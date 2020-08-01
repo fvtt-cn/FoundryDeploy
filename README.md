@@ -1,6 +1,11 @@
 # FoundryDeploy
 FoundryVTT 部署脚本
 
+# 前置要求
+- [x] 一台 Linux 服务器
+- [ ] 服务器绑定域名（可选）
+
+
 # 使用方法
 
 ## 下载脚本
@@ -37,3 +42,13 @@ sudo ./fvtt.sh recreate
 ```bash
 sudo ./fvtt.sh clear
 ```
+
+# FAQ
+
+> Q: 为什么显示安装成功后，仍然无法连接 FoundryVTT?
+>
+> A: 检查服务器防火墙设置。如果购买的是云服务，可以在网页控制台上检查对应端口是否开启。
+
+> Q: 为什么不使用 Docker-Compose?
+> 
+> A: 避免进行更多安装步骤，国内服务器太难了。
