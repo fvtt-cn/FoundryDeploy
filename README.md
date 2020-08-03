@@ -1,6 +1,8 @@
 # FoundryDeploy
 FoundryVTT 部署脚本
 
+<img src="/fvtt-docker-script.png" width="200">
+
 # 前置要求
 - [x] 一台 Linux 服务器
 - [ ] 服务器绑定域名（可选）
