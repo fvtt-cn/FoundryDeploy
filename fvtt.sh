@@ -97,6 +97,19 @@ echoLine() {
 }
 # ---------------------
 
+# 获取发行版名称，credit to docker
+get_distribution() {
+	lsb_dist=""
+	# Every system that we officially support has /etc/os-release
+	if [ -r /etc/os-release ]; then
+		lsb_dist="$(. /etc/os-release && echo "$ID")"
+	fi
+	# Returning an empty string here should be alright since the
+	# case statements don't act unless you provide an actual value
+	echo "$lsb_dist"
+}
+# ---------------------
+
 # FoundryVTT 容器化自动安装脚本
 # By hmqgg (https://github.com/hmqgg)
 
@@ -116,6 +129,24 @@ if [ -x "$(command -v docker)" ]; then
 else
     warning "Docker 未安装，安装中...（境内服务器可能较慢，耐心等待）"
     curl -fsSL https://get.docker.com | sh
+    
+    # CentOS 安装后启动 Docker 服务
+    lsb_dist=$( get_distribution )
+	lsb_dist="$(echo "$lsb_dist" | tr '[:upper:]' '[:lower:]')"
+    
+    case "$lsb_dist" in
+
+		centos|rhel)
+			systemctl enable docker
+            systemctl start docker
+		;;
+
+		*)
+            # 非 CentOS/RHEL
+            ;
+		;;
+
+	esac
 fi
 
 # 安装后，仍需检查
