@@ -132,21 +132,21 @@ else
     
     # CentOS 安装后启动 Docker 服务
     lsb_dist=$( get_distribution )
-	lsb_dist="$(echo "$lsb_dist" | tr '[:upper:]' '[:lower:]')"
-    
+    lsb_dist="$(echo "$lsb_dist" | tr '[:upper:]' '[:lower:]')"
+
     case "$lsb_dist" in
 
-		centos|rhel)
-			systemctl enable docker
+        centos|rhel)
+            systemctl enable docker
             systemctl start docker
 		;;
-
-		*)
+        
+        *)
             # 非 CentOS/RHEL
-            ;
-		;;
+            echo "非 CentOS/RHEL，服务已经启动"
+        ;;
 
-	esac
+    esac
 fi
 
 # 安装后，仍需检查
