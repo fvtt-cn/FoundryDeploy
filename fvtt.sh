@@ -128,7 +128,7 @@ if [ -x "$(command -v docker)" ]; then
     information "Docker 已安装"
 else
     warning "Docker 未安装，安装中...（境内服务器可能较慢，耐心等待）"
-    curl -fsSL https://get.docker.com | sh
+    curl -fsSL https://get.docker.com | sh -s -- --mirror Aliyun
     
     # CentOS 安装后启动 Docker 服务
     lsb_dist=$( get_distribution )
