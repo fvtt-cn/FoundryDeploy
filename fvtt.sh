@@ -315,6 +315,8 @@ eval $fvttrun && docker container inspect $fvttname >/dev/null 2>&1 && success "
 if [ "$fbyn" != "n" -a "$fbyn" != "N" ]; then
     # 提前创建/清空数据库，但只在安装过程中
     [ -z "$@" ] && truncate -s 0 $fbdatabase
+    # 改写数据库文件权限到 421
+    chown 421:421 $fbdatabase
     # 写死用户 421，匹配 FVTT docker 镜像用户；写死 fvttapp 映射路径为 /srv/APP
     fbrun="docker run -d --name=${fbname} --restart=unless-stopped --network=${bridge} -c=${fbcpu} -m=${fbmemory} --user "421:421" -v ${fvttvolume}:/srv -v ${fvttapp}:/srv/APP -v ${fbdatabase}:/database.db -v ${fbjson}:/.filebrowser.json filebrowser/filebrowser"
     eval $fbrun && docker container inspect $fbname >/dev/null 2>&1 && success "FileBrowser 容器启动成功" || { error "FileBrowser 容器启动失败" ; exit 7 ; }
