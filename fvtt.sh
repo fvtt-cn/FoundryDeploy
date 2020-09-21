@@ -10,6 +10,7 @@ fbname="filebr"
 # 网桥/挂载名
 bridge="caddy_network"
 fvttvolume="fvtt_data"
+fvttapp="fvtt_app"
 caddyvolume="caddy_data"
 
 # 端口号（无域名使用）
@@ -19,6 +20,7 @@ fbport="30001"
 # 杂项，此处直接使用 PWD 有一定风险
 caddyfile="$PWD/Caddyfile"  # Caddy 配置
 fbdatabase="$PWD/filebrowser.db" # FileBrowser 数据库
+fbjson="$PWD/filebr.json" # FileBrowser 配置文件
 caddycpu=256 # Caddy CPU 使用百分比
 fvttcpu=1024 # FoundryVTT CPU 使用百分比
 fbcpu=256 # FileBrowser CPU 使用百分比
@@ -220,6 +222,7 @@ fi
 # 创建网桥和挂载
 docker network create $bridge || { error "错误：创建网桥失败。通常是因为已经创建，请升级而非安装" ; exit 4 ; }
 docker volume create $fvttvolume || warning "警告：创建挂载 ${fvttvolume} 失败。通常是因为已经创建，如果正在升级，请无视该警告"
+docker volume create $fvttapp || warning "警告：创建挂载 ${fvttapp} 失败。通常是因为已经创建，如果正在升级，请无视该警告"
 docker volume create $caddyvolume || warning "警告：创建挂载 ${caddyvolume} 失败。通常是因为已经创建，如果正在升级，请无视该警告"
 
 # 检查是否有同名容器
@@ -264,18 +267,31 @@ if [ "$fbyn" != "n" -a "$fbyn" != "N" ]; then
     if [ -n "$fbdomain" ]; then
 cat <<EOF >>$caddyfile
 $fbdomain {
-    reverse_proxy ${fbname}:80
+    reverse_proxy ${fbname}:8080
 }
 
 EOF
     else
 cat <<EOF >>$caddyfile
 :${fbport} {
-    reverse_proxy ${fbname}:80
+    reverse_proxy ${fbname}:8080
 }
 
 EOF
     fi
+
+    # 写入 FileBrowser 配置文件，锁定在 8080 端口
+cat <<EOF >$fbjson
+{
+  "port": 8080,
+  "baseURL": "",
+  "address": "",
+  "log": "stdout",
+  "database": "/database.db",
+  "root": "/srv"
+}
+
+EOF
 fi
 
 cat $caddyfile 2>/dev/null && success "Caddy 配置成功" || { error "错误：无法读取 Caddy 配置文件" ; exit 6 ; }
@@ -289,7 +305,7 @@ caddyrun="${caddyrun}caddy"
 eval $caddyrun && docker container inspect $caddyname >/dev/null 2>&1 && success "Caddy 容器启动成功" || { error "错误：Caddy 容器启动失败" ; exit 7 ; }
 
 # FVTT
-fvttrun="docker run -d --name=${fvttname} --restart=unless-stopped --network=${bridge} -c=${fvttcpu} -v ${fvttvolume}:/data -e FOUNDRY_USERNAME='${username}' -e FOUNDRY_PASSWORD='${password}' "
+fvttrun="docker run -d --name=${fvttname} --restart=unless-stopped --network=${bridge} -c=${fvttcpu} -v ${fvttvolume}:/data -v ${fvttapp}:/home/foundry -e FOUNDRY_USERNAME='${username}' -e FOUNDRY_PASSWORD='${password}' "
 [ -n "$version" ] && fvttrun="${fvttrun}-e FOUNDRY_VERSION=${version} "
 [ -n "$adminpass" ] && fvttrun="${fvttrun}-e FOUNDRY_ADMIN_KEY=${adminpass} "
 fvttrun="${fvttrun} felddy/foundryvtt:release"
@@ -299,7 +315,8 @@ eval $fvttrun && docker container inspect $fvttname >/dev/null 2>&1 && success "
 if [ "$fbyn" != "n" -a "$fbyn" != "N" ]; then
     # 提前创建/清空数据库，但只在安装过程中
     [ -z "$@" ] && truncate -s 0 $fbdatabase
-    fbrun="docker run -d --name=${fbname} --restart=unless-stopped --network=${bridge} -c=${fbcpu} -m=${fbmemory} -v ${fvttvolume}:/srv -v ${fbdatabase}:/database.db filebrowser/filebrowser"
+    # 写死用户 421，匹配 FVTT docker 镜像用户；写死 fvttapp 映射路径为 /srv/APP
+    fbrun="docker run -d --name=${fbname} --restart=unless-stopped --network=${bridge} -c=${fbcpu} -m=${fbmemory} --user "421:421" -v ${fvttvolume}:/srv -v ${fvttapp}:/srv/APP -v ${fbdatabase}:/database.db -v ${fbjson}:/.filebrowser.json filebrowser/filebrowser"
     eval $fbrun && docker container inspect $fbname >/dev/null 2>&1 && success "FileBrowser 容器启动成功" || { error "FileBrowser 容器启动失败" ; exit 7 ; }
 fi
 echoLine
@@ -368,10 +385,10 @@ clear() {
 
         # 移除网桥、挂载
         docker network rm $bridge
-        docker volume rm $caddyvolume $fvttvolume
+        docker volume rm $caddyvolume $fvttvolume $fvttapp
 
         # 删除创建的文件
-        rm $caddyfile $fbdatabase
+        rm $caddyfile $fbdatabase $fbjson
 
         success "清除完毕！"
     fi
