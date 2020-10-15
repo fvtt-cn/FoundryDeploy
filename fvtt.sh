@@ -220,7 +220,7 @@ fi
 
 # 第四步，开始部署
 # 创建网桥和挂载
-docker network create $bridge || { error "错误：创建网桥失败。通常是因为已经创建，请升级而非安装" ; exit 4 ; }
+docker network create $bridge || warning "错误：创建网桥失败。通常是因为已经创建，请升级而非安装"
 docker volume create $fvttvolume || warning "警告：创建挂载 ${fvttvolume} 失败。通常是因为已经创建，如果正在升级，请无视该警告"
 docker volume create $fvttapp || warning "警告：创建挂载 ${fvttapp} 失败。通常是因为已经创建，如果正在升级，请无视该警告"
 docker volume create $caddyvolume || warning "警告：创建挂载 ${caddyvolume} 失败。通常是因为已经创建，如果正在升级，请无视该警告"
