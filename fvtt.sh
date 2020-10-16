@@ -18,6 +18,7 @@ fvttport="30000"
 fbport="30001"
 
 # 杂项，此处直接使用 PWD 有一定风险
+config="$PWD/fvtt-config"
 caddyfile="$PWD/Caddyfile"  # Caddy 配置
 fbdatabase="$PWD/filebrowser.db" # FileBrowser 数据库
 fbjson="$PWD/filebr.json" # FileBrowser 配置文件
@@ -166,21 +167,34 @@ echoLine
 
 # 第二步，输入可配置参数
 # 密码回显，方便初学者
-warning "请输入以下参数，用于获取 FoundryVTT 下载链接及授权，并配置服务器"
 
-while read -p "请输入已购买的 FoundryVTT 账号：" username && [ -z "$username" ] || read -p "请输入密码：" password && [ -z "$password" ]; do
-    error "错误：请输入有效的账号密码！"
-done
+# 如果配置文件存在，是否读取存储的配置
+if [ -f "$config" ]; then
+    read -p "是否直接使用已存储的除版本以外的上次部署使用的配置（FVTT 用户名、密码、域名、Web 文件管理器等；默认使用）[Y/n]：" useConfig
+fi
+
+if [ "$useConfig" != "n" -a "$useConfig" != "N" ]; then
+    # 使用配置文件
+    source $config
+    ## 但仍然读取版本配置号
+    read -p "请输入要安装的 FoundryVTT 的版本号【例：0.6.5】（可选。若无，直接回车，默认使用最新稳定版）：" version
+else
+    warning "请输入以下参数，用于获取 FoundryVTT 下载链接及授权，并配置服务器（参数将会存储在 ${config} 下以便后续更新）"
+
+    while read -p "请输入已购买的 FoundryVTT 账号：" username && [ -z "$username" ] || read -p "请输入密码：" password && [ -z "$password" ]; do
+        error "错误：请输入有效的账号密码！"
+    done
+    echoLine
+
+    # 可选参数。若有域名，则使用 Caddy 反代
+    read -p "请输入要安装的 FoundryVTT 的版本号【例：0.6.5】（可选。若无，直接回车，默认使用最新稳定版）：" version
+    read -p "请输入自定义的 FoundryVTT 的管理密码（可选。若无，直接回车）：" adminpass
+    read -p "请输入 FoundryVTT 将会使用的已绑定该服务器的域名（可选。若无，直接回车）：" domain
+    read -p "是否使用 Web 文件管理器来管理 FoundryVTT 的文件?（可选。推荐使用，默认开启）[Y/n]：" fbyn
+    [ "$fbyn" != "n" -a "$fbyn" != "N" ] && read -p "请输入 Web 文件管理器将会使用的已绑定该服务器的域名（可选。若无，直接回车）：" fbdomain
+fi
+
 echoLine
-
-# 可选参数。若有域名，则使用 Caddy 反代
-read -p "请输入要安装的 FoundryVTT 的版本号【例：0.6.5】（可选。若无，直接回车，默认使用最新稳定版）：" version
-read -p "请输入自定义的 FoundryVTT 的管理密码（可选。若无，直接回车）：" adminpass
-read -p "请输入 FoundryVTT 将会使用的已绑定该服务器的域名（可选。若无，直接回车）：" domain
-read -p "是否使用 Web 文件管理器来管理 FoundryVTT 的文件?（可选。推荐使用，默认开启）[Y/n]：" fbyn
-[ "$fbyn" != "n" -a "$fbyn" != "N" ] && read -p "请输入 Web 文件管理器将会使用的已绑定该服务器的域名（可选。若无，直接回车）：" fbdomain
-echoLine
-
 warning "请确认以下所有参数是否输入正确！！！"
 information -n "FVTT 账号：" && cecho -c 'cyan' $username
 information -n "FVTT 密码：" && cecho -c 'cyan' $password
@@ -220,7 +234,7 @@ fi
 
 # 第四步，开始部署
 # 创建网桥和挂载
-docker network create $bridge || warning "错误：创建网桥失败。通常是因为已经创建，请升级而非安装"
+docker network create $bridge || warning "错误：创建网桥 ${bridge} 失败。通常是因为已经创建，请升级而非安装"
 docker volume create $fvttvolume || warning "警告：创建挂载 ${fvttvolume} 失败。通常是因为已经创建，如果正在升级，请无视该警告"
 docker volume create $fvttapp || warning "警告：创建挂载 ${fvttapp} 失败。通常是因为已经创建，如果正在升级，请无视该警告"
 docker volume create $caddyvolume || warning "警告：创建挂载 ${caddyvolume} 失败。通常是因为已经创建，如果正在升级，请无视该警告"
@@ -233,9 +247,10 @@ docker container inspect $caddyname >/dev/null 2>&1 && error "错误：Caddy 已
 success "网桥、挂载创建成功，且无同名容器"
 echoLine
 
-# 重写 Caddy 配置
-if [ -n "$domain" ]; then
-    # 有域名
+# 如果不使用存储配置，重写 Caddy 配置
+if [ "$useConfig" == "n" -o "$useConfig" == "N" ]; then
+    if [ -n "$domain" ]; then
+        # 有域名
 cat <<EOF >$caddyfile
 $domain {
     reverse_proxy ${fvttname}:30000 {
@@ -247,8 +262,8 @@ $domain {
 }
 
 EOF
-else
-    # 无域名
+    else
+        # 无域名
 cat <<EOF >$caddyfile
 :${fvttport} {
     reverse_proxy ${fvttname}:30000 {
@@ -260,38 +275,39 @@ cat <<EOF >$caddyfile
 }
 
 EOF
-fi
+    fi
 
-# FileBrowser
-if [ "$fbyn" != "n" -a "$fbyn" != "N" ]; then
-    if [ -n "$fbdomain" ]; then
+    # FileBrowser
+    if [ "$fbyn" != "n" -a "$fbyn" != "N" ]; then
+        if [ -n "$fbdomain" ]; then
 cat <<EOF >>$caddyfile
 $fbdomain {
     reverse_proxy ${fbname}:8080
 }
 
 EOF
-    else
+        else
 cat <<EOF >>$caddyfile
 :${fbport} {
     reverse_proxy ${fbname}:8080
 }
 
 EOF
-    fi
+        fi
 
-    # 写入 FileBrowser 配置文件，锁定在 8080 端口
+        # 写入 FileBrowser 配置文件，锁定在 8080 端口
 cat <<EOF >$fbjson
 {
-  "port": 8080,
-  "baseURL": "",
-  "address": "",
-  "log": "stdout",
-  "database": "/database.db",
-  "root": "/srv"
+"port": 8080,
+"baseURL": "",
+"address": "",
+"log": "stdout",
+"database": "/database.db",
+"root": "/srv"
 }
 
 EOF
+    fi
 fi
 
 cat $caddyfile 2>/dev/null && success "Caddy 配置成功" || { error "错误：无法读取 Caddy 配置文件" ; exit 6 ; }
@@ -323,6 +339,16 @@ if [ "$fbyn" != "n" -a "$fbyn" != "N" ]; then
 fi
 echoLine
 
+# 写入参数配置以便后续使用
+cat <<EOF >$config
+username="${username}"
+password="${password}"
+adminpass="${adminpass}"
+domain="${domain}"
+fbyn="${fbyn}"
+fbdomain="${fbdomain}"
+EOF
+
 # 成功，列出访问方式
 success "FoundryVTT 已成功部署！服务器设定如下："
 echoLine
@@ -344,7 +370,7 @@ recreate() {
 remove() {
     error -n "警告！！！使用该命令将删除所有容器和网桥，但是存档、文件等数据将保留，不过仍可能导致意外后果！" && read -p "[y/N]：" rmyn
     if [ "$rmyn" == "y" -o "$rmyn" == "Y" ]; then
-        warning "删除中...（等待5秒，按下 Ctrl+C 立即中止）"
+        warning "删除中...（等待3秒，按下 Ctrl+C 立即中止）"
         sleep 3
 
         # 移除容器
@@ -362,7 +388,7 @@ remove() {
 restart() {
     error -n "警告！！！使用该命令将重启所有容器，可能导致意外后果！" && read -p "[y/N]：" restartyn
     if [ "$restartyn" == "y" -o "$restartyn" == "Y" ]; then
-        warning "重启中...（等待5秒，按下 Ctrl+C 立即中止）"
+        warning "重启中...（等待3秒，按下 Ctrl+C 立即中止）"
         sleep 3
 
         docker restart $fvttname
@@ -377,7 +403,7 @@ clear() {
     error -n "警告！！！使用该命令将清除所有内容，包括 Caddy、 FVTT 所有游戏、存档、文件！" && read -p "[y/N]：" cleanyn && [ "$cleanyn" == "y" -o "$cleanyn" == "Y" ] && \
      error -n "再次警告！！！使用该命令将清除所有内容，包括 Caddy、 FVTT 所有游戏、存档、文件！" && read -p "[y/N]：" cleanyn
     if [ "$cleanyn" == "y" -o "$cleanyn" == "Y" ]; then
-        warning "清除中...（等待5s，按下 Ctrl+C 立即中止）"
+        warning "清除中...（等待3s，按下 Ctrl+C 立即中止）"
         sleep 3
 
         # 移除容器
@@ -390,7 +416,7 @@ clear() {
         docker volume rm $caddyvolume $fvttvolume $fvttapp
 
         # 删除创建的文件
-        rm $caddyfile $fbdatabase $fbjson
+        rm $caddyfile $fbdatabase $fbjson $config
 
         success "清除完毕！"
     fi
