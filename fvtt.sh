@@ -168,9 +168,10 @@ echoLine
 # 第二步，输入可配置参数
 # 密码回显，方便初学者
 
+useConfig="n"
 # 如果配置文件存在，是否读取存储的配置
 if [ -f "$config" ]; then
-    read -p "是否直接使用已存储的除版本以外的上次部署使用的配置（FVTT 用户名、密码、域名、Web 文件管理器等；默认使用）[Y/n]：" useConfig
+    read -p "是否直接使用已存储的上次部署使用的配置（FVTT 用户名、密码、域名、Web 文件管理器等；默认使用）[Y/n]：" useConfig
 fi
 
 if [ "$useConfig" != "n" -a "$useConfig" != "N" ]; then
