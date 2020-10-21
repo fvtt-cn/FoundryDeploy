@@ -21,11 +21,11 @@ fbport="30001"
 config="$PWD/fvtt-config"
 caddyfile="$PWD/Caddyfile"  # Caddy 配置
 fbdatabase="$PWD/filebrowser.db" # FileBrowser 数据库
-fbjson="$PWD/filebr.json" # FileBrowser 配置文件
 caddycpu=256 # Caddy CPU 使用百分比
 fvttcpu=1024 # FoundryVTT CPU 使用百分比
 fbcpu=256 # FileBrowser CPU 使用百分比
 fbmemory="256M" # FileBrowser 内存使用上限，超过则 OOM Kill 重启容器
+publicip=$(curl -s http://icanhazip.com) # 获取外网 IP 地址，不一定成功
 
 # 以下为 cecho, credit to Tux
 # ---------------------
@@ -234,7 +234,7 @@ fi
 
 # 第四步，开始部署
 # 创建网桥和挂载
-docker network create $bridge || warning "错误：创建网桥 ${bridge} 失败。通常是因为已经创建，请升级而非安装"
+docker network create $bridge || warning "错误：创建网桥 ${bridge} 失败。通常是因为已经创建，如果正在升级，请无视该警告"
 docker volume create $fvttvolume || warning "警告：创建挂载 ${fvttvolume} 失败。通常是因为已经创建，如果正在升级，请无视该警告"
 docker volume create $fvttapp || warning "警告：创建挂载 ${fvttapp} 失败。通常是因为已经创建，如果正在升级，请无视该警告"
 docker volume create $caddyvolume || warning "警告：创建挂载 ${caddyvolume} 失败。通常是因为已经创建，如果正在升级，请无视该警告"
@@ -276,38 +276,6 @@ cat <<EOF >$caddyfile
 
 EOF
     fi
-
-    # FileBrowser
-    if [ "$fbyn" != "n" -a "$fbyn" != "N" ]; then
-        if [ -n "$fbdomain" ]; then
-cat <<EOF >>$caddyfile
-$fbdomain {
-    reverse_proxy ${fbname}:8080
-}
-
-EOF
-        else
-cat <<EOF >>$caddyfile
-:${fbport} {
-    reverse_proxy ${fbname}:8080
-}
-
-EOF
-        fi
-
-        # 写入 FileBrowser 配置文件，锁定在 8080 端口
-cat <<EOF >$fbjson
-{
-"port": 8080,
-"baseURL": "",
-"address": "",
-"log": "stdout",
-"database": "/database.db",
-"root": "/srv"
-}
-
-EOF
-    fi
 fi
 
 cat $caddyfile 2>/dev/null && success "Caddy 配置成功" || { error "错误：无法读取 Caddy 配置文件" ; exit 6 ; }
@@ -320,10 +288,12 @@ caddyrun="docker run -d --name=${caddyname} --restart=unless-stopped --network=$
 caddyrun="${caddyrun}caddy"
 eval $caddyrun && docker container inspect $caddyname >/dev/null 2>&1 && success "Caddy 容器启动成功" || { error "错误：Caddy 容器启动失败" ; exit 7 ; }
 
-# FVTT
-fvttrun="docker run -d --name=${fvttname} --restart=unless-stopped --network=${bridge} -c=${fvttcpu} -v ${fvttvolume}:/data -v ${fvttapp}:/home/foundry -e FOUNDRY_USERNAME='${username}' -e FOUNDRY_PASSWORD='${password}' "
+# FVTT，使用 root:root 运行避免文件权限问题
+fvttrun="docker run -d --name=${fvttname} --restart=unless-stopped --network=${bridge} -c=${fvttcpu} -e FOUNDRY_UID='root' -e FOUNDRY_GID='root' -v ${fvttvolume}:/data -v ${fvttapp}:/home/foundry -e FOUNDRY_USERNAME='${username}' -e FOUNDRY_PASSWORD='${password}' "
 [ -n "$version" ] && fvttrun="${fvttrun}-e FOUNDRY_VERSION=${version} "
 [ -n "$adminpass" ] && fvttrun="${fvttrun}-e FOUNDRY_ADMIN_KEY=${adminpass} "
+[ -n "$domain" ] && fvttrun="${fvttrun}-e FOUNDRY_HOSTNAME=${domain} -e FOUNDRY_PROXY_SSL='true' "
+[ -z "$domain" ] && fvttrun="${fvttrun}-e FOUNDRY_PROXY_PORT=${fvttport} "
 fvttrun="${fvttrun} felddy/foundryvtt:release"
 eval $fvttrun && docker container inspect $fvttname >/dev/null 2>&1 && success "FoundryVTT 容器启动成功" || { error "错误：FoundryVTT 容器启动失败" ; exit 7 ; }
 
@@ -331,10 +301,8 @@ eval $fvttrun && docker container inspect $fvttname >/dev/null 2>&1 && success "
 if [ "$fbyn" != "n" -a "$fbyn" != "N" ]; then
     # 提前创建/清空数据库，但只在安装过程中
     [ -z "$@" ] && truncate -s 0 $fbdatabase
-    # 改写数据库文件权限到 421
-    chown 421:421 $fbdatabase
-    # 写死用户 421，匹配 FVTT docker 镜像用户；写死 fvttapp 映射路径为 /srv/APP
-    fbrun="docker run -d --name=${fbname} --restart=unless-stopped --network=${bridge} -c=${fbcpu} -m=${fbmemory} --user "421:421" -v ${fvttvolume}:/srv -v ${fvttapp}:/srv/APP -v ${fbdatabase}:/database.db -v ${fbjson}:/.filebrowser.json filebrowser/filebrowser"
+    # 写死 fvttapp 映射路径为 /srv/APP
+    fbrun="docker run -d --name=${fbname} --restart=unless-stopped --network=${bridge} -c=${fbcpu} -m=${fbmemory} -v ${fvttvolume}:/srv -v ${fvttapp}:/srv/APP -v ${fbdatabase}:/database.db filebrowser/filebrowser"
     eval $fbrun && docker container inspect $fbname >/dev/null 2>&1 && success "FileBrowser 容器启动成功" || { error "FileBrowser 容器启动失败" ; exit 7 ; }
 fi
 echoLine
@@ -352,10 +320,11 @@ EOF
 # 成功，列出访问方式
 success "FoundryVTT 已成功部署！服务器设定如下："
 echoLine
-information -n "FoundryVTT 访问地址： " && [ -n "$domain" ] && cecho -c 'cyan' $domain || cecho -c 'cyan' "服务器IP:${fvttport}"
+information -n "FoundryVTT 访问地址： " && [ -n "$domain" ] && cecho -c 'cyan' $domain || cecho -c 'cyan' "${publicip}:${fvttport}"
 [ -n "$adminpass" ] && information -n "FVTT 管理密码：" && cecho -c 'cyan' $adminpass
 if [ "$fbyn" != "n" -a "$fbyn" != "N" ]; then
-    information -n "Web 文件管理器访问地址： " && [ -n "$fbdomain" ] && cecho -c 'cyan' $fbdomain || cecho -c 'cyan' "服务器IP:${fbport}"
+    information -n "Web 文件管理器访问地址： " && [ -n "$fbdomain" ] && cecho -c 'cyan' $fbdomain || cecho -c 'cyan' "${publicip}:${fbport}"
+    information -n "Web 文件管理器下 APP/resources/app 目录为 Foundry VTT 程序所在目录"
     # Web 文件管理器的用户名/密码可能在数据库里被修改
     [ -z "$@" ] && information -n "Web 文件管理器用户名/密码: " && cecho -c 'cyan' "admin/admin （建议登录后修改）"
 fi
@@ -381,7 +350,7 @@ remove() {
         # 移除网桥
         docker network rm $bridge
 
-        success "删除完毕！"
+        success "删除完毕！（如果输出错误一般是网桥未成功删除，升级时可以忽略）"
     fi
 }
 
@@ -416,7 +385,7 @@ clear() {
         docker volume rm $caddyvolume $fvttvolume $fvttapp
 
         # 删除创建的文件
-        rm $caddyfile $fbdatabase $fbjson $config
+        rm $caddyfile $fbdatabase $config
 
         success "清除完毕！"
     fi
