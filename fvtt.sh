@@ -325,7 +325,7 @@ information -n "FoundryVTT 访问地址： " && [ -n "$domain" ] && cecho -c 'cy
 [ -n "$adminpass" ] && information -n "FVTT 管理密码：" && cecho -c 'cyan' $adminpass
 if [ "$fbyn" != "n" -a "$fbyn" != "N" ]; then
     information -n "Web 文件管理器访问地址： " && [ -n "$fbdomain" ] && cecho -c 'cyan' $fbdomain || cecho -c 'cyan' "${publicip}:${fbport}"
-    information -n "Web 文件管理器下 APP/resources/app 目录为 Foundry VTT 程序所在目录"
+    cecho -c 'cyan' "Web 文件管理器下 APP/resources/app 目录为 Foundry VTT 程序所在目录"
     # Web 文件管理器的用户名/密码可能在数据库里被修改
     [ -z "$@" ] && information -n "Web 文件管理器用户名/密码: " && cecho -c 'cyan' "admin/admin （建议登录后修改）"
 fi
