@@ -300,8 +300,8 @@ eval $fvttrun && docker container inspect $fvttname >/dev/null 2>&1 && success "
 
 # FileBrowser
 if [ "$fbyn" != "n" -a "$fbyn" != "N" ]; then
-    # 提前创建/清空数据库，但只在安装过程中
-    [ -z "$@" ] && truncate -s 0 $fbdatabase
+    # 如果没有数据库文件，创建一个
+    [ ! -f $fbdatabase ] && truncate -s 0 $fbdatabase
     # 写死 fvttapp 映射路径为 /srv/APP
     fbrun="docker run -d --name=${fbname} --restart=unless-stopped --network=${bridge} -c=${fbcpu} -m=${fbmemory} -v ${fvttvolume}:/srv -v ${fvttapp}:/srv/APP -v ${fbdatabase}:/database.db filebrowser/filebrowser"
     eval $fbrun && docker container inspect $fbname >/dev/null 2>&1 && success "FileBrowser 容器启动成功" || { error "FileBrowser 容器启动失败" ; exit 7 ; }
