@@ -277,6 +277,23 @@ cat <<EOF >$caddyfile
 
 EOF
     fi
+
+    # FileBrowser
+    if [ "$fbyn" != "n" -a "$fbyn" != "N" ]; then
+        if [ -n "$fbdomain" ]; then
+cat <<EOF >>$caddyfile
+$fbdomain {
+    reverse_proxy ${fbname}:80
+}
+EOF
+        else
+cat <<EOF >>$caddyfile
+:${fbport} {
+    reverse_proxy ${fbname}:80
+}
+EOF
+        fi
+    fi
 fi
 
 cat $caddyfile 2>/dev/null && success "Caddy 配置成功" || { error "错误：无法读取 Caddy 配置文件" ; exit 6 ; }
