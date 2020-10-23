@@ -310,7 +310,7 @@ eval $caddyrun && docker container inspect $caddyname >/dev/null 2>&1 && success
 fvttrun="docker run -d --name=${fvttname} --restart=unless-stopped --network=${bridge} -c=${fvttcpu} -e FOUNDRY_UID='root' -e FOUNDRY_GID='root' -v ${fvttvolume}:/data -v ${fvttapp}:/home/foundry -e FOUNDRY_USERNAME='${username}' -e FOUNDRY_PASSWORD='${password}' "
 [ -n "$version" ] && { [[ $version == http* ]] && fvttrun="${fvttrun}-e FOUNDRY_RELEASE_URL='${version}' " || fvttrun="${fvttrun}-e FOUNDRY_VERSION='${version}' "; }
 [ -n "$adminpass" ] && fvttrun="${fvttrun}-e FOUNDRY_ADMIN_KEY='${adminpass}' "
-[ -n "$domain" ] && fvttrun="${fvttrun}-e FOUNDRY_HOSTNAME='${domain}' -e FOUNDRY_PROXY_SSL='true' FOUNDRY_PROXY_PORT='443' "
+[ -n "$domain" ] && fvttrun="${fvttrun}-e FOUNDRY_HOSTNAME='${domain}' -e FOUNDRY_PROXY_SSL='true' -e FOUNDRY_PROXY_PORT='443' "
 [ -z "$domain" ] && fvttrun="${fvttrun}-e FOUNDRY_PROXY_PORT='${fvttport}' "
 fvttrun="${fvttrun} felddy/foundryvtt:release"
 eval $fvttrun && docker container inspect $fvttname >/dev/null 2>&1 && success "FoundryVTT 容器启动成功" || { error "错误：FoundryVTT 容器启动失败" ; exit 7 ; }
