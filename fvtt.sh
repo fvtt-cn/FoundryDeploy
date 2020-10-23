@@ -178,7 +178,7 @@ if [ "$useConfig" != "n" -a "$useConfig" != "N" ]; then
     # 使用配置文件
     source $config
     ## 但仍然读取版本配置号
-    read -p "请输入要安装的 FoundryVTT 的版本号【例：0.6.5】（可选。若无，直接回车，默认使用最新稳定版）：" version
+    read -p "请输入要安装的 FoundryVTT 的版本号，或 Linux 直链下载地址(http/https开头)【例：0.7.5】（可选。若无，直接回车，默认使用最新稳定版）：" version
 else
     warning "请输入以下参数，用于获取 FoundryVTT 下载链接及授权，并配置服务器（参数将会存储在 ${config} 下以便后续更新）"
 
@@ -188,7 +188,7 @@ else
     echoLine
 
     # 可选参数。若有域名，则使用 Caddy 反代
-    read -p "请输入要安装的 FoundryVTT 的版本号【例：0.6.5】（可选。若无，直接回车，默认使用最新稳定版）：" version
+    read -p "请输入要安装的 FoundryVTT 的版本号，或 Linux 直链下载地址(http/https开头)【例：0.7.5】（可选。若无，直接回车，默认使用最新稳定版）：" version
     read -p "请输入自定义的 FoundryVTT 的管理密码（可选。若无，直接回车）：" adminpass
     read -p "请输入 FoundryVTT 将会使用的已绑定该服务器的域名（可选。若无，直接回车）：" domain
     read -p "是否使用 Web 文件管理器来管理 FoundryVTT 的文件?（可选。推荐使用，默认开启）[Y/n]：" fbyn
@@ -199,7 +199,7 @@ echoLine
 warning "请确认以下所有参数是否输入正确！！！"
 information -n "FVTT 账号：" && cecho -c 'cyan' $username
 information -n "FVTT 密码：" && cecho -c 'cyan' $password
-[ -n "$version" ] && information -n "FVTT 安装版本：" && cecho -c 'cyan' $version
+[ -n "$version" ] && ([[ $version == http* ]] && information -n "FVTT 下载地址：" || information -n "FVTT 安装版本：" && cecho -c 'cyan' $version)
 [ -n "$adminpass" ] && information -n "FVTT 管理密码：" && cecho -c 'cyan' $adminpass
 [ -n "$domain" ] && information -n "FVTT 域名：" && cecho -c 'cyan' $domain
 information -n "Web 文件管理器：" && [ "$fbyn" != "n" -a "$fbyn" != "N" ] && cecho -c 'cyan' "启用" || cecho -c 'cyan' "禁用"
@@ -308,10 +308,10 @@ eval $caddyrun && docker container inspect $caddyname >/dev/null 2>&1 && success
 
 # FVTT，使用 root:root 运行避免文件权限问题
 fvttrun="docker run -d --name=${fvttname} --restart=unless-stopped --network=${bridge} -c=${fvttcpu} -e FOUNDRY_UID='root' -e FOUNDRY_GID='root' -v ${fvttvolume}:/data -v ${fvttapp}:/home/foundry -e FOUNDRY_USERNAME='${username}' -e FOUNDRY_PASSWORD='${password}' "
-[ -n "$version" ] && fvttrun="${fvttrun}-e FOUNDRY_VERSION=${version} "
-[ -n "$adminpass" ] && fvttrun="${fvttrun}-e FOUNDRY_ADMIN_KEY=${adminpass} "
-[ -n "$domain" ] && fvttrun="${fvttrun}-e FOUNDRY_HOSTNAME=${domain} -e FOUNDRY_PROXY_SSL='true' FOUNDRY_PROXY_PORT='443' "
-[ -z "$domain" ] && fvttrun="${fvttrun}-e FOUNDRY_PROXY_PORT=${fvttport} "
+[ -n "$version" ] && ([[ $version == http* ]] && fvttrun="${fvttrun}-e FOUNDRY_RELEASE_URL='${version}' " || fvttrun="${fvttrun}-e FOUNDRY_VERSION='${version}' ")
+[ -n "$adminpass" ] && fvttrun="${fvttrun}-e FOUNDRY_ADMIN_KEY='${adminpass}' "
+[ -n "$domain" ] && fvttrun="${fvttrun}-e FOUNDRY_HOSTNAME='${domain}' -e FOUNDRY_PROXY_SSL='true' FOUNDRY_PROXY_PORT='443' "
+[ -z "$domain" ] && fvttrun="${fvttrun}-e FOUNDRY_PROXY_PORT='${fvttport}' "
 fvttrun="${fvttrun} felddy/foundryvtt:release"
 eval $fvttrun && docker container inspect $fvttname >/dev/null 2>&1 && success "FoundryVTT 容器启动成功" || { error "错误：FoundryVTT 容器启动失败" ; exit 7 ; }
 
