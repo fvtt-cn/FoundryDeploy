@@ -190,7 +190,8 @@ else
     # 可选参数。若有域名，则使用 Caddy 反代
     read -p "请输入要安装的 FoundryVTT 的版本号，或 Linux 直链下载地址(http/https开头)【例：0.7.5】（可选。若无，直接回车，默认使用最新稳定版）：" version
     read -p "请输入自定义的 FoundryVTT 的管理密码（可选。若无，直接回车）：" adminpass
-    read -p "请输入 FoundryVTT 将会使用的已绑定该服务器的域名（可选。若无，直接回车）：" domain
+    read -p "请输入 FoundryVTT 将会使用的已绑定该服务器的域名（可选，需要绑定该服务器。若无，直接回车）：" domain
+    read -p "请输入 FoundryVTT 使用 CDN 时的加速域名（可选，不能绑定该服务器。若无，直接回车）：" cdndomain
     read -p "是否使用 Web 文件管理器来管理 FoundryVTT 的文件?（可选。推荐使用，默认开启）[Y/n]：" fbyn
     [ "$fbyn" != "n" -a "$fbyn" != "N" ] && read -p "请输入 Web 文件管理器将会使用的已绑定该服务器的域名（可选。若无，直接回车）：" fbdomain
 fi
@@ -202,6 +203,7 @@ information -n "FVTT 密码：" && cecho -c 'cyan' $password
 [ -n "$version" ] && ([[ $version == http* ]] && information -n "FVTT 下载地址：" || information -n "FVTT 安装版本：" && cecho -c 'cyan' $version)
 [ -n "$adminpass" ] && information -n "FVTT 管理密码：" && cecho -c 'cyan' $adminpass
 [ -n "$domain" ] && information -n "FVTT 域名：" && cecho -c 'cyan' $domain
+[ -n "$cdndomain" ] && information -n "FVTT 加速域名：" && cecho -c 'cyan' $cdndomain
 information -n "Web 文件管理器：" && [ "$fbyn" != "n" -a "$fbyn" != "N" ] && cecho -c 'cyan' "启用" || cecho -c 'cyan' "禁用"
 [ -n "$fbdomain" ] && information -n "Web 文件管理器域名：" && cecho -c 'cyan' $fbdomain
 
@@ -251,28 +253,20 @@ echoLine
 # 如果不使用存储配置，重写 Caddy 配置
 if [ "$useConfig" == "n" -o "$useConfig" == "N" ]; then
     if [ -n "$domain" ]; then
-        # 有域名
+        # 有 Caddy 域名
 cat <<EOF >$caddyfile
 $domain {
-    reverse_proxy ${fvttname}:30000 {
-        header_up Host {host}
-        header_up X-Real-IP {remote_host}
-        header_up X-Forwarded-For {remote_host}
-        header_up X-Forwarded-Proto {scheme}  
-    }
+    reverse_proxy ${fvttname}:30000
+    encode zstd gzip
 }
 
 EOF
     else
-        # 无域名
+        # 无 Caddy 域名
 cat <<EOF >$caddyfile
 :${fvttport} {
-    reverse_proxy ${fvttname}:30000 {
-        header_up Host {host}
-        header_up X-Real-IP {remote_host}
-        header_up X-Forwarded-For {remote_host}
-        header_up X-Forwarded-Proto {scheme}  
-    }
+    reverse_proxy ${fvttname}:30000
+    encode zstd gzip
 }
 
 EOF
@@ -280,19 +274,36 @@ EOF
 
     # FileBrowser
     if [ "$fbyn" != "n" -a "$fbyn" != "N" ]; then
-        if [ -n "$fbdomain" ]; then
+        if [ -n "$fbdomain" ]; 
+        # 有 FB 域名
 cat <<EOF >>$caddyfile
 $fbdomain {
     reverse_proxy ${fbname}:80
+    encode zstd gzip
 }
+
 EOF
         else
+        # 无 FB 域名
 cat <<EOF >>$caddyfile
 :${fbport} {
     reverse_proxy ${fbname}:80
+    encode zstd gzip
 }
+
 EOF
         fi
+    fi
+
+    if [ -n "$cdndomain" ]; then
+    # CDN 域名，默认直接在 80 端口上 HOST HTTP。对境内服务器，应无备案问题，不然也用不了 CDN
+cat <<EOF >>$caddyfile
+http://${cdndomain} {
+    reverse_proxy ${fvttname}:30000
+    encode zstd gzip
+}
+
+EOF
     fi
 fi
 
@@ -333,18 +344,20 @@ adminpass="${adminpass}"
 domain="${domain}"
 fbyn="${fbyn}"
 fbdomain="${fbdomain}"
+cdndomain="${cdndomain}"
 EOF
 
 # 成功，列出访问方式
 success "FoundryVTT 已成功部署！服务器设定如下："
 echoLine
 information -n "FoundryVTT 访问地址： " && [ -n "$domain" ] && cecho -c 'cyan' $domain || cecho -c 'cyan' "${publicip}:${fvttport}"
+[ -n "$cdndomain" ] && information -n "FoundryVTT 加速访问地址： " && cecho -c 'cyan' $cdndomain
 [ -n "$adminpass" ] && information -n "FVTT 管理密码：" && cecho -c 'cyan' $adminpass
 if [ "$fbyn" != "n" -a "$fbyn" != "N" ]; then
     information -n "Web 文件管理器访问地址： " && [ -n "$fbdomain" ] && cecho -c 'cyan' $fbdomain || cecho -c 'cyan' "${publicip}:${fbport}"
     cecho -c 'cyan' "Web 文件管理器下 APP/resources/app 目录为 Foundry VTT 程序所在目录"
     # Web 文件管理器的用户名/密码可能在数据库里被修改
-    [ -z "$@" ] && information -n "Web 文件管理器用户名/密码: " && cecho -c 'cyan' "admin/admin （建议登录后修改）"
+    [ -z "$@" ] && information -n "Web 文件管理器用户名/密码： " && cecho -c 'cyan' "admin/admin （建议登录后修改）"
 fi
 echoLine
 fi
