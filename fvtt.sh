@@ -274,7 +274,7 @@ EOF
 
     # FileBrowser
     if [ "$fbyn" != "n" -a "$fbyn" != "N" ]; then
-        if [ -n "$fbdomain" ]; 
+        if [ -n "$fbdomain" ]; then
         # 有 FB 域名
 cat <<EOF >>$caddyfile
 $fbdomain {
