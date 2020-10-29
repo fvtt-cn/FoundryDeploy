@@ -10,7 +10,7 @@ fbname="filebr"
 # 网桥/挂载名
 bridge="caddy_network"
 fvttvolume="fvtt_data"
-fvttapp="fvtt_app"
+fvttapp="fvtt_appv"
 caddyvolume="caddy_data"
 
 # 端口号（无域名使用）
@@ -320,7 +320,7 @@ eval $caddyrun && docker container inspect $caddyname >/dev/null 2>&1 && success
 # FVTT，使用 root:root 运行避免文件权限问题
 fvttrun="docker run -d --name=${fvttname} --restart=unless-stopped --network=${bridge} -c=${fvttcpu} "
 fvttrun="${fvttrun}-e FOUNDRY_UID='root' -e FOUNDRY_GID='root' -e CONTAINER_PRESERVE_CONFIG='true' "
-fvttrun="${fvttrun}-v ${fvttvolume}:/data -v ${fvttapp}:/home/foundry "
+fvttrun="${fvttrun}-v ${fvttvolume}:/data -v ${fvttapp}:/home/foundry/resources/app "
 fvttrun="${fvttrun}-e FOUNDRY_USERNAME='${username}' -e FOUNDRY_PASSWORD='${password}' -e FOUNDRY_MINIFY_STATIC_FILES='true' "
 [ -n "$version" ] && { [[ $version == http* ]] && fvttrun="${fvttrun}-e FOUNDRY_RELEASE_URL='${version}' " || fvttrun="${fvttrun}-e FOUNDRY_VERSION='${version}' "; }
 [ -n "$adminpass" ] && fvttrun="${fvttrun}-e FOUNDRY_ADMIN_KEY='${adminpass}' "
