@@ -12,6 +12,7 @@ bridge="caddy_network"
 fvttvolume="fvtt_data"
 fvttapp="fvtt_appv"
 caddyvolume="caddy_data"
+optim_empty="optim_empty"
 
 # 端口号（无域名使用）
 fvttport="30000"
@@ -422,6 +423,21 @@ clear() {
         rm $caddyfile $fbdatabase $config
 
         success "清除完毕！"
+    fi
+}
+
+optim() {
+    error -n "警告！！！使用该命令将压缩模组和系统以外Data目录下的图片尺寸，如果中途中断可能会造成对应图片信息丢失！" && read -p "[y/N]：" optimyn
+    if [ "$optimyn" == "y" -o "$optimyn" == "Y" ]; then
+        warning "准备中...（等待3秒，按下 Ctrl+C 立即中止）"
+        sleep 3
+
+        docker pull hmqgg/optimizt
+        docker run --rm -v $fvttvolume:/data -v $optim_empty:/data/Data/modules -v $optim_empty:/data/Data/systems hmqgg/optimizt
+
+        docker volume rm $optim_empty
+
+        success "压缩完毕！"
     fi
 }
 
