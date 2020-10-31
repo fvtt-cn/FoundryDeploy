@@ -427,13 +427,13 @@ clear() {
 }
 
 optim() {
-    error -n "警告！！！使用该命令将压缩模组和系统以外Data目录下的图片尺寸，如果中途中断可能会造成对应图片信息丢失！" && read -p "[y/N]：" optimyn
+    error -n "警告！！！使用该命令将有损压缩模组和系统以外 Data 目录下的图片尺寸，如果中途中断可能会造成对应图片信息丢失！" && read -p "[y/N]：" optimyn
     if [ "$optimyn" == "y" -o "$optimyn" == "Y" ]; then
         warning "准备中...（等待3秒，按下 Ctrl+C 立即中止）"
         sleep 3
 
-        docker pull hmqgg/optimizt
-        docker run --rm -v $fvttvolume:/data -v $optim_empty:/data/Data/modules -v $optim_empty:/data/Data/systems hmqgg/optimizt
+        docker pull hmqgg/image_optim
+        docker run --rm -it -v $fvttvolume:/data -v $optim_empty:/data/Data/modules -v $optim_empty:/data/Data/systems hmqgg/image_optim
 
         docker volume rm $optim_empty
 
