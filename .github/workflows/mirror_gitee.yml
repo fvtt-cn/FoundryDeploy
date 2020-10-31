@@ -18,5 +18,5 @@ jobs:
         env:
           SSH_PRIVATE_KEY: ${{ secrets.MIRROR_SSH_PRIVATE_KEY }}
         with:
-          source-repo: 'git@github.com:fvtt-cn/fvtt-cn.github.io.git'
+          source-repo: 'git@github.com:fvtt-cn/FoundryDeploy.git'
           destination-repo: 'git@gitee.com:mitchx7/FoundryDeploy.git'
