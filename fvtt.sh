@@ -417,7 +417,7 @@ clear() {
 
         # 移除网桥、挂载
         docker network rm $bridge
-        docker volume rm $caddyvolume $fvttvolume $fvttapp
+        docker volume rm $caddyvolume $fvttvolume $fvttapp $optim_empty
 
         # 删除创建的文件
         rm $caddyfile $fbdatabase $config
@@ -432,12 +432,12 @@ optim() {
         warning "准备中...（等待3秒，按下 Ctrl+C 立即中止）"
         sleep 3
 
-        docker pull hmqgg/image_optim
-        docker run --rm -it -v $fvttvolume:/data -v $optim_empty:/data/Data/modules -v $optim_empty:/data/Data/systems hmqgg/image_optim
-
         docker volume rm $optim_empty
 
-        success "压缩完毕！"
+        docker pull hmqgg/image_optim
+        docker run --rm -d -v $fvttvolume:/data -v $optim_empty:/data/Data/modules -v $optim_empty:/data/Data/systems hmqgg/image_optim
+
+        success "压缩正在后台进行中，完毕后会自动退出！"
     fi
 }
 
