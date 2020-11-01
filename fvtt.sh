@@ -179,17 +179,28 @@ if [ "$useConfig" != "n" -a "$useConfig" != "N" ]; then
     # 使用配置文件
     source $config
     ## 但仍然读取版本配置号
+    [ -z "$username" -o -z "$password" ] && warning "配置文件未存储有效的 FVTT 的账号密码。输入版本号时，必须使用直链下载地址！！！" 
     read -p "请输入要安装的 FoundryVTT 的版本号，或 Linux 直链下载地址(http/https开头)【例：0.7.5】（可选。若无，直接回车，默认使用最新稳定版）：" version
+
+    while [ -z "$username" -o -z "$password" ] && [[ $version != http* ]]; do
+        warning "配置文件未存储有效的 FVTT 的账号密码。输入版本号时，必须使用直链下载地址！！！" 
+        read -p "请输入要安装的 FoundryVTT 的 Linux 直链下载地址(http/https开头)：" version
+    done
 else
     warning "请输入以下参数，用于获取 FoundryVTT 下载链接及授权，并配置服务器（参数将会存储在 ${config} 下以便后续更新）"
 
-    while read -p "请输入已购买的 FoundryVTT 账号：" username && [ -z "$username" ] || read -p "请输入密码：" password && [ -z "$password" ]; do
-        error "错误：请输入有效的账号密码！"
-    done
+    read -p "请输入已购买的 FoundryVTT 账号（可选。若无，直接回车，为空时版本号必须输入直链下载地址）：" username && [ -z "$username" ] || read -p "请输入该账号的密码：" password
     echoLine
 
-    # 可选参数。若有域名，则使用 Caddy 反代
+    # 可选参数
+    [ -z "$username" -o -z "$password" ] && warning "未输入有效的 FVTT 的账号密码。输入版本号时，必须使用直链下载地址！！！" 
     read -p "请输入要安装的 FoundryVTT 的版本号，或 Linux 直链下载地址(http/https开头)【例：0.7.5】（可选。若无，直接回车，默认使用最新稳定版）：" version
+
+    while [ -z "$username" -o -z "$password" ] && [[ $version != http* ]]; do
+        warning "未输入有效的 FVTT 的账号密码。输入版本号时，必须使用直链下载地址！！！（需要输入账号密码，请按 Ctrl+C 并重新开始安装）" 
+        read -p "请输入要安装的 FoundryVTT 的 Linux 直链下载地址(http/https开头)：" version
+    done
+
     read -p "请输入自定义的 FoundryVTT 的管理密码（可选。若无，直接回车）：" adminpass
     read -p "请输入 FoundryVTT 将会使用的已绑定该服务器的域名（可选，需要绑定该服务器。若无，直接回车）：" domain
     read -p "请输入 FoundryVTT 使用 CDN 时的加速域名（可选，不能绑定该服务器。若无，直接回车）：" cdndomain
@@ -322,8 +333,13 @@ eval $caddyrun && docker container inspect $caddyname >/dev/null 2>&1 && success
 fvttrun="docker run -d --name=${fvttname} --restart=unless-stopped --network=${bridge} -c=${fvttcpu} "
 fvttrun="${fvttrun}-e FOUNDRY_UID='root' -e FOUNDRY_GID='root' -e CONTAINER_PRESERVE_CONFIG='true' "
 fvttrun="${fvttrun}-v ${fvttvolume}:/data -v ${fvttapp}:/home/foundry/resources/app "
-fvttrun="${fvttrun}-e FOUNDRY_USERNAME='${username}' -e FOUNDRY_PASSWORD='${password}' -e FOUNDRY_MINIFY_STATIC_FILES='true' "
+# 默认 Minify 静态 CSS/JS 文件
+fvttrun="${fvttrun}-e FOUNDRY_MINIFY_STATIC_FILES='true' "
+
+# 账号密码 / 直链下载地址
+[ -n "$username" -a -n "$password" ] && fvttrun="${fvttrun}-e FOUNDRY_USERNAME='${username}' -e FOUNDRY_PASSWORD='${password}' "
 [ -n "$version" ] && { [[ $version == http* ]] && fvttrun="${fvttrun}-e FOUNDRY_RELEASE_URL='${version}' " || fvttrun="${fvttrun}-e FOUNDRY_VERSION='${version}' "; }
+
 [ -n "$adminpass" ] && fvttrun="${fvttrun}-e FOUNDRY_ADMIN_KEY='${adminpass}' "
 [ -n "$domain" ] && fvttrun="${fvttrun}-e FOUNDRY_HOSTNAME='${domain}' -e FOUNDRY_PROXY_SSL='true' -e FOUNDRY_PROXY_PORT='443' "
 [ -z "$domain" ] && fvttrun="${fvttrun}-e FOUNDRY_PROXY_PORT='${fvttport}' "
