@@ -199,7 +199,7 @@ else
     read -p "请输入要安装的 FoundryVTT 的版本号，或 Linux 直链下载地址(http/https开头)【例：0.7.5】（可选。若无，直接回车，默认使用最新稳定版）：" version
 
     while [ -z "$username" -o -z "$password" ] && [[ $version != http* ]]; do
-        warning "未输入有效的 FVTT 的账号密码。输入版本号时，必须使用直链下载地址！！！（需要输入账号密码，请按 Ctrl+C 并重新开始安装）" 
+        warning "未输入有效的 FVTT 的账号密码。输入版本号时，必须使用直链下载地址！！！（如果需要使用账号密码来配置，请按 Ctrl+C 并重新开始安装）" 
         read -p "请输入要安装的 FoundryVTT 的 Linux 直链下载地址(http/https开头)：" version
     done
 
@@ -239,6 +239,17 @@ fi
 read -s -p "按下回车确认参数正确，否则按下 Ctrl+C 退出"
 echo
 echoLine
+
+# 写入参数配置以便后续使用
+cat <<EOF >$config
+username="${username}"
+password="${password}"
+adminpass="${adminpass}"
+domain="${domain}"
+fbyn="${fbyn}"
+fbdomain="${fbdomain}"
+cdndomain="${cdndomain}"
+EOF
 
 # 第三步，拉取镜像
 information "拉取需要使用到的镜像（境内服务器可能较慢，耐心等待）"
@@ -357,17 +368,6 @@ if [ "$fbyn" != "n" -a "$fbyn" != "N" ]; then
     eval $fbrun && docker container inspect $fbname >/dev/null 2>&1 && success "FileBrowser 容器启动成功" || { error "FileBrowser 容器启动失败" ; exit 7 ; }
 fi
 echoLine
-
-# 写入参数配置以便后续使用
-cat <<EOF >$config
-username="${username}"
-password="${password}"
-adminpass="${adminpass}"
-domain="${domain}"
-fbyn="${fbyn}"
-fbdomain="${fbdomain}"
-cdndomain="${cdndomain}"
-EOF
 
 # 成功，列出访问方式
 success "FoundryVTT 已成功部署！服务器设定如下："
