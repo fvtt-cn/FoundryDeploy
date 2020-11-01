@@ -2,6 +2,8 @@
 
 # FoundryVTT 安装脚本默认参数
 
+SCRIPT_VERSION="1.1.0"
+
 # 容器名
 fvttname="fvtt"
 caddyname="caddy"
@@ -43,7 +45,7 @@ cecho() {
         ['white']='\E[0;37m'\
     );
  
-    local defaultMSG="无消息";
+    local defaultMSG="无";
     local defaultColor="black";
     local defaultNewLine=true;
 
@@ -117,7 +119,7 @@ get_distribution() {
 # FoundryVTT 容器化自动安装脚本
 # By hmqgg (https://github.com/hmqgg)
 
-cecho -c 'magenta' "FoundryVTT 容器化自动安装脚本"
+cecho -c 'magenta' "FoundryVTT 容器化自动安装脚本 Ver.${SCRIPT_VERSION}"
 cecho -c 'magenta' "By hmqgg (https://github.com/hmqgg)"
 echoLine
 
