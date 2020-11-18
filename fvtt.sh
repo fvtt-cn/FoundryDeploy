@@ -2,7 +2,7 @@
 
 # FoundryVTT 安装脚本默认参数
 
-SCRIPT_VERSION="1.1.0"
+SCRIPT_VERSION="1.1.2"
 
 # 容器名
 fvttname="fvtt"
@@ -27,7 +27,7 @@ fbdatabase="$PWD/filebrowser.db" # FileBrowser 数据库
 caddycpu=256 # Caddy CPU 使用百分比
 fvttcpu=1024 # FoundryVTT CPU 使用百分比
 fbcpu=256 # FileBrowser CPU 使用百分比
-fbmemory="256M" # FileBrowser 内存使用上限，超过则 OOM Kill 重启容器
+fbmemory="512M" # FileBrowser 内存使用上限，超过则 OOM Kill 重启容器
 publicip=$(curl -s http://icanhazip.com) # 获取外网 IP 地址，不一定成功
 
 # 以下为 cecho, credit to Tux
