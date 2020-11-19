@@ -77,7 +77,7 @@ cecho() {
     if [ "$newLine" = true ] ; then
         echo;
     fi
-    tput sgr0; #  Reset text attributes to normal without clearing screen.
+    tput sgr0 || :; #  Reset text attributes to normal without clearing screen.
  
     return;
 }
