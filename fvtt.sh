@@ -324,7 +324,9 @@ EOF
     # CDN 域名，默认直接在 80 端口上 HOST HTTP。对境内服务器，应无备案问题，不然也用不了 CDN
 cat <<EOF >>$caddyfile
 http://${cdndomain} {
-    reverse_proxy ${fvttname}:30000
+    reverse_proxy ${fvttname}:30000 {
+        header_down Cache-Control "max-age=0" "max-age=0, s-maxage=31536000"
+    }
     encode zstd gzip
 }
 
