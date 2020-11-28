@@ -47,12 +47,6 @@ sudo ./fvtt.sh recreate
 sudo ./fvtt.sh clear
 ```
 
-## 压缩图片尺寸
-脚本可以在后台自动进行当前 FoundryVTT 的数据文件夹下的图片压缩，完成后自动停止，压缩效果视图片格式、颜色等等而定，一般在20%-80%之间。如果需要开始优化，请运行以下命令：
-```bash
-sudo ./fvtt.sh optim
-```
-
 # FAQ
 
 > Q: 为什么显示安装成功后，仍然无法连接 FoundryVTT?
