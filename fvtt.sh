@@ -8,16 +8,19 @@ SCRIPT_VERSION="1.3.0"
 fvttname="fvtt"
 caddyname="caddy"
 fbname="filebr"
+dashname="portainer"
 
 # 网桥/挂载名
 bridge="caddy_network"
 fvttvolume="fvtt_data"
 fvttapp="fvtt_appv"
 caddyvolume="caddy_data"
+dashvolume="portainer_data"
 
 # 端口号（无域名使用）
 fvttport="30000"
 fbport="30001"
+dashport="30002"
 
 # 杂项，此处直接使用 PWD 有一定风险
 config="$PWD/fvtt-config"
@@ -28,6 +31,7 @@ fvttcpu=1024 # FoundryVTT CPU 使用百分比
 fbcpu=256 # FileBrowser CPU 使用百分比
 fbmemory="512M" # FileBrowser 内存使用上限，超过则 OOM Kill 重启容器
 publicip=$(curl -s http://icanhazip.com) # 获取外网 IP 地址，不一定成功
+dockersocket="/var/run/docker.sock"
 
 # 以下为 cecho, credit to Tux
 # ---------------------
@@ -207,6 +211,8 @@ else
     read -p "请输入 FoundryVTT 使用 CDN 时的加速域名（可选，不能绑定该服务器。若无，直接回车）：" cdndomain
     read -p "是否使用 Web 文件管理器来管理 FoundryVTT 的文件?（可选。推荐使用，默认开启）[Y/n]：" fbyn
     [ "$fbyn" != "n" -a "$fbyn" != "N" ] && read -p "请输入 Web 文件管理器将会使用的已绑定该服务器的域名（可选。若无，直接回车）：" fbdomain
+    read -p "是否使用 Docker 网页仪表盘来管理服务器？（可选。默认关闭）[y/N]：" dashyn
+    [ "$dashyn" == "y" -o "$dashyn" == "Y" ] && read -p "请输入 Docker 网页仪表盘将会使用的已绑定该服务器的域名（可选。若无，直接回车）：" dashdomain
 fi
 
 echoLine
@@ -219,6 +225,8 @@ information -n "FVTT 密码：" && cecho -c 'cyan' $password
 [ -n "$cdndomain" ] && information -n "FVTT 加速域名：" && cecho -c 'cyan' $cdndomain
 information -n "Web 文件管理器：" && [ "$fbyn" != "n" -a "$fbyn" != "N" ] && cecho -c 'cyan' "启用" || cecho -c 'cyan' "禁用"
 [ -n "$fbdomain" ] && information -n "Web 文件管理器域名：" && cecho -c 'cyan' $fbdomain
+information -n "Docker 仪表盘：" && [ "$dashyn" == "y" -o "$dashyn" == "Y" ] && cecho -c 'cyan' "启用" || cecho -c 'cyan' "禁用"
+[ -n "$dashdomain" ] && information -n "Docker 仪表盘域名：" && cecho -c 'cyan' $dashdomain
 
 # 检查端口占用
 if test "$domain" || test "$fbdomain"; then
@@ -234,6 +242,10 @@ if [ "$fbyn" != "n" -a "$fbyn" != "N" -a -z "$fbdomain" ]; then
     # 检查 30001
     (echo >/dev/tcp/localhost/$fbport) &>/dev/null && { error "${fbport} 端口被占用，无法部署" ; exit 2 ; } || information "${fbport} 端口未占用，可部署"
 fi
+if [ -z "$dashdomain" -a "$dashyn" == "y" -o "$dashyn" == "Y" ]; then
+    # 检查 30002
+    (echo >/dev/tcp/localhost/$dashport) &>/dev/null && { error "${dashport} 端口被占用，无法部署" ; exit 2 ; } || information "${dashport} 端口未占用，可部署"
+fi
 
 read -s -p "按下回车确认参数正确，否则按下 Ctrl+C 退出"
 echo
@@ -248,6 +260,8 @@ domain="${domain}"
 fbyn="${fbyn}"
 fbdomain="${fbdomain}"
 cdndomain="${cdndomain}"
+dashyn="${dashyn}"
+dashdomain="${dashdomain}"
 EOF
 
 # 第三步，拉取镜像
@@ -258,18 +272,24 @@ docker pull caddy && docker image inspect caddy >/dev/null 2>&1 && success "拉�
 if [ "$fbyn" != "n" -a "$fbyn" != "N" ]; then
     docker pull filebrowser/filebrowser && docker image inspect filebrowser/filebrowser >/dev/null 2>&1 && success "拉取 FileBrowser 成功" || { error "错误：拉取 FileBrowser 失败" ; exit 3 ; }
 fi
+if [ "$dashyn" == "y" -o "$dashyn" == "Y" ]; then
+    docker pull portainer/portainer-ce && docker image inspect portainer/portainer-ce >/dev/null 2>&1 && success "拉取 Portainer 成功" || { error "错误：拉取 Portainer 失败" ; exit 3 ; }
+fi
 
 # 第四步，开始部署
 # 创建网桥和挂载
 docker network create $bridge || warning "错误：创建网桥 ${bridge} 失败。通常是因为已经创建，如果正在升级，请无视该警告"
+
 docker volume create $fvttvolume || warning "警告：创建挂载 ${fvttvolume} 失败。通常是因为已经创建，如果正在升级，请无视该警告"
 docker volume create $fvttapp || warning "警告：创建挂载 ${fvttapp} 失败。通常是因为已经创建，如果正在升级，请无视该警告"
 docker volume create $caddyvolume || warning "警告：创建挂载 ${caddyvolume} 失败。通常是因为已经创建，如果正在升级，请无视该警告"
+[ "$dashyn" == "y" -o "$dashyn" == "Y" ] && { docker volume create $dashvolume || warning "警告：创建挂载 ${dashvolume} 失败。通常是因为已经创建，如果正在升级，请无视该警告"; }
 
 # 检查是否有同名容器
 docker container inspect $fvttname >/dev/null 2>&1 && error "错误：FoundryVTT 已经启动过，请升级而非安装" && exit 5
 docker container inspect $caddyname >/dev/null 2>&1 && error "错误：Caddy 已经启动过，请升级而非安装" && exit 5
 [ "$fbyn" != "n" -a "$fbyn" != "N" ] && docker container inspect $fbname >/dev/null 2>&1 && error "错误：FileBrowser 已经启动过，请升级而非安装" && exit 5
+[ "$dashyn" == "y" -o "$dashyn" == "Y" ] && docker container inspect $dashname >/dev/null 2>&1 && error "错误：Portainer 已经启动过，请升级而非安装" && exit 5
 
 success "网桥、挂载创建成功，且无同名容器"
 echoLine
@@ -331,6 +351,28 @@ http://${cdndomain} {
 
 EOF
     fi
+
+    if [ "$dashyn" == "y" -o "$dashyn" == "Y" ]; then
+        if [ -n "$dashdomain" ]; then
+        # 有 Portainer 域名
+cat <<EOF >>$caddyfile
+$dashdomain {
+    reverse_proxy ${dashname}:9000
+    encode zstd gzip
+}
+
+EOF
+        else
+        # 无 Portainer 域名
+cat <<EOF >>$caddyfile
+:${dashport} {
+    reverse_proxy ${dashname}:9000
+    encode zstd gzip
+}
+
+EOF
+        fi
+    fi
 fi
 
 cat $caddyfile 2>/dev/null && success "Caddy 配置成功" || { error "错误：无法读取 Caddy 配置文件" ; exit 6 ; }
@@ -368,6 +410,13 @@ if [ "$fbyn" != "n" -a "$fbyn" != "N" ]; then
     fbrun="docker run -d --name=${fbname} --restart=unless-stopped --network=${bridge} -c=${fbcpu} -m=${fbmemory} -v ${fvttvolume}:/srv -v ${fvttapp}:/srv/APP -v ${fbdatabase}:/database.db filebrowser/filebrowser"
     eval $fbrun && docker container inspect $fbname >/dev/null 2>&1 && success "FileBrowser 容器启动成功" || { error "FileBrowser 容器启动失败" ; exit 7 ; }
 fi
+
+# Portainer
+if [ "$dashyn" == "y" -o "$dashyn" == "Y" ]; then
+    dashrun="docker run -d --name=${dashname} --restart=unless-stopped --network=${bridge} -v ${dashvolume}:/data -v ${dockersocket}:/var/run/docker.sock portainer/portainer-ce"
+    eval $dashrun && docker container inspect $dashname >/dev/null 2>&1 && success "Portainer 容器启动成功" || { error "Portainer 容器启动失败" ; exit 7 ; }
+fi
+
 echoLine
 
 # 成功，列出访问方式
@@ -381,6 +430,10 @@ if [ "$fbyn" != "n" -a "$fbyn" != "N" ]; then
     cecho -c 'cyan' "Web 文件管理器下 APP 目录为 Foundry VTT 程序所在目录"
     # Web 文件管理器的用户名/密码可能在数据库里被修改
     [ -z "$@" ] && information -n "Web 文件管理器用户名/密码： " && cecho -c 'cyan' "admin/admin （建议登录后修改）"
+fi
+if [ "$dashyn" == "y" -o "$dashyn" == "Y" ]; then
+    information -n "Docker 仪表盘访问地址： " && [ -n "$dashdomain" ] && cecho -c 'cyan' $dashdomain || cecho -c 'cyan' "${publicip}:${dashport}"
+    [ -z "$@" ] && cecho -c 'cyan' "Docker 仪表盘在第一次运行时需要设置密码"
 fi
 echoLine
 fi
@@ -400,6 +453,7 @@ remove() {
         docker rm -f $fvttname
         docker rm -f $caddyname
         docker rm -f $fbname
+        docker rm -f $dashname
 
         # 移除网桥
         docker network rm $bridge
@@ -417,6 +471,7 @@ restart() {
         docker restart $fvttname
         docker restart $caddyname
         docker restart $fbname
+        docker restart $dashname
 
         success "重启完毕！"
     fi
@@ -433,10 +488,11 @@ clear() {
         docker rm -f $fvttname
         docker rm -f $caddyname
         docker rm -f $fbname
+        docker rm -f $dashname
 
         # 移除网桥、挂载
         docker network rm $bridge
-        docker volume rm $caddyvolume $fvttvolume $fvttapp 
+        docker volume rm $caddyvolume $fvttvolume $fvttapp $dashvolume
 
         # 删除创建的文件
         rm $caddyfile $fbdatabase $config
