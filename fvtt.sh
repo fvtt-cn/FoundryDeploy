@@ -270,7 +270,7 @@ information "拉取需要使用到的镜像（境内服务器可能较慢，耐�
 docker pull felddy/foundryvtt:release && docker image inspect felddy/foundryvtt:release >/dev/null 2>&1 && success "拉取 FoundryVTT 成功" || { error "错误：拉取 FoundryVTT 失败" ; exit 3 ; }
 docker pull caddy && docker image inspect caddy >/dev/null 2>&1 && success "拉取 Caddy 成功" || { error "错误：拉取 Caddy 失败" ; exit 3 ; }
 if [ "$fbyn" != "n" -a "$fbyn" != "N" ]; then
-    docker pull filebrowser/filebrowser && docker image inspect filebrowser/filebrowser >/dev/null 2>&1 && success "拉取 FileBrowser 成功" || { error "错误：拉取 FileBrowser 失败" ; exit 3 ; }
+    docker pull filebrowser/filebrowser:alpine && docker image inspect filebrowser/filebrowser:alpine >/dev/null 2>&1 && success "拉取 FileBrowser 成功" || { error "错误：拉取 FileBrowser 失败" ; exit 3 ; }
 fi
 if [ "$dashyn" == "y" -o "$dashyn" == "Y" ]; then
     docker pull portainer/portainer-ce && docker image inspect portainer/portainer-ce >/dev/null 2>&1 && success "拉取 Portainer 成功" || { error "错误：拉取 Portainer 失败" ; exit 3 ; }
@@ -407,7 +407,7 @@ if [ "$fbyn" != "n" -a "$fbyn" != "N" ]; then
     # 如果没有数据库文件，创建一个
     [ ! -f $fbdatabase ] && truncate -s 0 $fbdatabase
     # 写死 fvttapp 映射路径为 /srv/APP
-    fbrun="docker run -d --name=${fbname} --restart=unless-stopped --network=${bridge} -c=${fbcpu} -m=${fbmemory} -v ${fvttvolume}:/srv -v ${fvttapp}:/srv/APP -v ${fbdatabase}:/database.db filebrowser/filebrowser"
+    fbrun="docker run -d --name=${fbname} --restart=unless-stopped --network=${bridge} -c=${fbcpu} -m=${fbmemory} -v ${fvttvolume}:/srv -v ${fvttapp}:/srv/APP -v ${fbdatabase}:/database.db filebrowser/filebrowser:alpine"
     eval $fbrun && docker container inspect $fbname >/dev/null 2>&1 && success "FileBrowser 容器启动成功" || { error "FileBrowser 容器启动失败" ; exit 7 ; }
 fi
 
