@@ -458,6 +458,9 @@ remove() {
         # 移除网桥
         docker network rm $bridge
 
+        # 清理 Docker 多余镜像
+        docker image prune -f
+
         success "删除完毕！（如果输出错误一般是网桥未成功删除，升级时可以忽略）"
     fi
 }
@@ -496,6 +499,9 @@ clear() {
 
         # 删除创建的文件
         rm $caddyfile $fbdatabase $config
+
+        # 清理 Docker 多余镜像
+        docker image prune -f
 
         success "清除完毕！"
     fi
