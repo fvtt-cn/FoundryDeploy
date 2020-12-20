@@ -2,7 +2,7 @@
 
 # FoundryVTT 安装脚本默认参数
 
-SCRIPT_VERSION="1.3.1"
+SCRIPT_VERSION="1.3.2"
 
 # 容器名
 fvttname="fvtt"
@@ -508,7 +508,7 @@ clear() {
 }
 
 do_hosts() {
-    if awk "/#StartFoundryDeployHosts/,/#EndFoundryDeployHosts/" hosts | grep . ; then
+    if awk "/#StartFoundryDeployHosts/,/#EndFoundryDeployHosts/" /etc/hosts | grep . ; then
         warning "已修改过 Hosts，无需再次修改；如需撤销，请执行 undo_hosts"
     else
 cat <<EOF >>/etc/hosts
@@ -529,7 +529,7 @@ EOF
 }
 
 undo_hosts() {
-    if awk "/#StartFoundryDeployHosts/,/#EndFoundryDeployHosts/" hosts | grep . ; then
+    if awk "/#StartFoundryDeployHosts/,/#EndFoundryDeployHosts/" /etc/hosts | grep . ; then
         sed --in-place '/#StartFoundryDeployHosts/,/#EndFoundryDeployHosts/d' /etc/hosts
         success "Hosts 撤销完毕！如需再次修改，请执行 do_hosts"
     else
