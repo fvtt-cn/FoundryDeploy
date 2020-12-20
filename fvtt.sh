@@ -2,7 +2,7 @@
 
 # FoundryVTT 安装脚本默认参数
 
-SCRIPT_VERSION="1.3.2"
+SCRIPT_VERSION="1.3.5"
 
 # 容器名
 fvttname="fvtt"
@@ -211,7 +211,6 @@ else
     read -p "请输入自定义的 FoundryVTT 的管理密码（可选。若无，直接回车）：" adminpass
     read -p "请输入 FoundryVTT 将会使用的已绑定该服务器的域名（可选，需要绑定该服务器。若无，直接回车）：" domain
     read -p "请输入 FoundryVTT 使用 CDN 时的加速域名（可选，不能绑定该服务器。若无，直接回车）：" cdndomain
-    read -p "请输入 GitHub 转发 Host 的 IP（可选。默认关闭。若无，直接回车）：" githost
     read -p "是否使用 Web 文件管理器来管理 FoundryVTT 的文件?（可选。推荐使用，默认开启）[Y/n]：" fbyn
     [ "$fbyn" != "n" -a "$fbyn" != "N" ] && read -p "请输入 Web 文件管理器将会使用的已绑定该服务器的域名（可选。若无，直接回车）：" fbdomain
     read -p "是否使用 Docker 网页仪表盘来管理服务器？（可选。默认关闭）[y/N]：" dashyn
@@ -226,7 +225,6 @@ information -n "FVTT 密码：" && cecho -c 'cyan' $password
 [ -n "$adminpass" ] && information -n "FVTT 管理密码：" && cecho -c 'cyan' $adminpass
 [ -n "$domain" ] && information -n "FVTT 域名：" && cecho -c 'cyan' $domain
 [ -n "$cdndomain" ] && information -n "FVTT 加速域名：" && cecho -c 'cyan' $cdndomain
-[ -n "$githost" ] && information -n "GitHub 转发 Host IP：" && cecho -c 'cyan' $githost
 information -n "Web 文件管理器：" && [ "$fbyn" != "n" -a "$fbyn" != "N" ] && cecho -c 'cyan' "启用" || cecho -c 'cyan' "禁用"
 [ -n "$fbdomain" ] && information -n "Web 文件管理器域名：" && cecho -c 'cyan' $fbdomain
 information -n "Docker 仪表盘：" && [ "$dashyn" == "y" -o "$dashyn" == "Y" ] && cecho -c 'cyan' "启用" || cecho -c 'cyan' "禁用"
@@ -266,7 +264,6 @@ fbdomain="${fbdomain}"
 cdndomain="${cdndomain}"
 dashyn="${dashyn}"
 dashdomain="${dashdomain}"
-githost="${githost}"
 EOF
 
 # 第三步，拉取镜像
@@ -400,8 +397,6 @@ fvttrun="${fvttrun}-e FOUNDRY_MINIFY_STATIC_FILES='true' "
 # 账号密码 / 直链下载地址
 [ -n "$username" -a -n "$password" ] && fvttrun="${fvttrun}-e FOUNDRY_USERNAME='${username}' -e FOUNDRY_PASSWORD='${password}' "
 [ -n "$version" ] && { [[ $version == http* ]] && fvttrun="${fvttrun}-e FOUNDRY_RELEASE_URL='${version}' " || fvttrun="${fvttrun}-e FOUNDRY_VERSION='${version}' "; }
-# 关闭 Node.js HTTP 请求对 TLS 证书的验证，极度危险，需保证无法逸出当前域
-[ -n "$githost" ] && fvttrun="${fvttrun}--add-host=github.com:${githost} --add-host=raw.githubusercontent.com:${githost} -e NODE_TLS_REJECT_UNAUTHORIZED=0 "
 [ -n "$adminpass" ] && fvttrun="${fvttrun}-e FOUNDRY_ADMIN_KEY='${adminpass}' "
 [ -n "$domain" ] && fvttrun="${fvttrun}-e FOUNDRY_HOSTNAME='${domain}' -e FOUNDRY_PROXY_SSL='true' -e FOUNDRY_PROXY_PORT='443' "
 [ -z "$domain" ] && fvttrun="${fvttrun}-e FOUNDRY_PROXY_PORT='${fvttport}' "
