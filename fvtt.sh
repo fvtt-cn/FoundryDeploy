@@ -507,6 +507,36 @@ clear() {
     fi
 }
 
+do_hosts() {
+    if awk "/#StartFoundryDeployHosts/,/#EndFoundryDeployHosts/" hosts | grep . ; then
+        warning "已修改过 Hosts，无需再次修改；如需撤销，请执行 undo_hosts"
+    else
+cat <<EOF >>/etc/hosts
+
+#StartFoundryDeployHosts
+192.30.255.113 github.com
+192.30.255.119 gist.github.com
+185.199.110.153 assets-cdn.github.com
+151.101.228.133 raw.githubusercontent.com
+151.101.228.133 gist.githubusercontent.com
+151.101.228.133 cloud.githubusercontent.com
+#EndFoundryDeployHosts
+
+EOF
+
+        success "Hosts 修改完毕！如需撤销，请执行 undo_hosts"
+    fi
+}
+
+undo_hosts() {
+    if awk "/#StartFoundryDeployHosts/,/#EndFoundryDeployHosts/" hosts | grep . ; then
+        sed --in-place '/#StartFoundryDeployHosts/,/#EndFoundryDeployHosts/d' /etc/hosts
+        success "Hosts 撤销完毕！如需再次修改，请执行 do_hosts"
+    else
+        warning "未修改过 Hosts，无需撤销更改"
+    fi
+}
+
 "$@"
 
 echo
