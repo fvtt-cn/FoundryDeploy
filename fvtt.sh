@@ -32,6 +32,8 @@ fbcpu=256 # FileBrowser CPU 使用百分比
 fbmemory="512M" # FileBrowser 内存使用上限，超过则 OOM Kill 重启容器
 publicip=$(curl -s http://icanhazip.com) # 获取外网 IP 地址，不一定成功
 dockersocket="/var/run/docker.sock"
+dockermirror="docker.mirrors.ustc.edu.cn/"
+
 
 # 以下为 cecho, credit to Tux
 # ---------------------
@@ -270,13 +272,13 @@ EOF
 # 第三步，拉取镜像
 information "拉取需要使用到的镜像（境内服务器可能较慢，耐心等待）"
 
-docker pull felddy/foundryvtt:release && docker image inspect felddy/foundryvtt:release >/dev/null 2>&1 && success "拉取 FoundryVTT 成功" || { error "错误：拉取 FoundryVTT 失败" ; exit 3 ; }
-docker pull caddy && docker image inspect caddy >/dev/null 2>&1 && success "拉取 Caddy 成功" || { error "错误：拉取 Caddy 失败" ; exit 3 ; }
+docker pull ${dockermirror}felddy/foundryvtt:release && docker tag ${dockermirror}felddy/foundryvtt:release felddy/foundryvtt:release && docker image inspect felddy/foundryvtt:release >/dev/null 2>&1 && success "拉取 FoundryVTT 成功" || { error "错误：拉取 FoundryVTT 失败" ; exit 3 ; }
+docker pull ${dockermirror}library/caddy && docker tag ${dockermirror}library/caddy caddy && docker image inspect caddy >/dev/null 2>&1 && success "拉取 Caddy 成功" || { error "错误：拉取 Caddy 失败" ; exit 3 ; }
 if [ "$fbyn" != "n" -a "$fbyn" != "N" ]; then
-    docker pull filebrowser/filebrowser:alpine && docker image inspect filebrowser/filebrowser:alpine >/dev/null 2>&1 && success "拉取 FileBrowser 成功" || { error "错误：拉取 FileBrowser 失败" ; exit 3 ; }
+    docker pull ${dockermirror}filebrowser/filebrowser:alpine && docker tag ${dockermirror}filebrowser/filebrowser:alpine filebrowser/filebrowser:alpine && docker image inspect filebrowser/filebrowser:alpine >/dev/null 2>&1 && success "拉取 FileBrowser 成功" || { error "错误：拉取 FileBrowser 失败" ; exit 3 ; }
 fi
 if [ "$dashyn" == "y" -o "$dashyn" == "Y" ]; then
-    docker pull portainer/portainer-ce && docker image inspect portainer/portainer-ce >/dev/null 2>&1 && success "拉取 Portainer 成功" || { error "错误：拉取 Portainer 失败" ; exit 3 ; }
+    docker pull ${dockermirror}portainer/portainer-ce && docker tag ${dockermirror}portainer/portainer-ce portainer/portainer-ce && docker image inspect portainer/portainer-ce >/dev/null 2>&1 && success "拉取 Portainer 成功" || { error "错误：拉取 Portainer 失败" ; exit 3 ; }
 fi
 
 # 第四步，开始部署
@@ -398,6 +400,7 @@ fvttrun="${fvttrun}-e FOUNDRY_MINIFY_STATIC_FILES='true' "
 # 账号密码 / 直链下载地址
 [ -n "$username" -a -n "$password" ] && fvttrun="${fvttrun}-e FOUNDRY_USERNAME='${username}' -e FOUNDRY_PASSWORD='${password}' "
 [ -n "$version" ] && { [[ $version == http* ]] && fvttrun="${fvttrun}-e FOUNDRY_RELEASE_URL='${version}' " || fvttrun="${fvttrun}-e FOUNDRY_VERSION='${version}' "; }
+# 关闭 Node.js HTTP 请求对 TLS 证书的验证，极度危险，需保证无法逸出当前域
 [ -n "$githost" ] && fvttrun="${fvttrun}--add-host=github.com:${githost} --add-host=raw.githubusercontent.com:${githost} -e NODE_TLS_REJECT_UNAUTHORIZED=0 "
 [ -n "$adminpass" ] && fvttrun="${fvttrun}-e FOUNDRY_ADMIN_KEY='${adminpass}' "
 [ -n "$domain" ] && fvttrun="${fvttrun}-e FOUNDRY_HOSTNAME='${domain}' -e FOUNDRY_PROXY_SSL='true' -e FOUNDRY_PROXY_PORT='443' "
