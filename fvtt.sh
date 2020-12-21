@@ -2,7 +2,7 @@
 
 # FoundryVTT 安装脚本默认参数
 
-SCRIPT_VERSION="1.3.5"
+SCRIPT_VERSION="1.3.6"
 
 # 容器名
 fvttname="fvtt"
