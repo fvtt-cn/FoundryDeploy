@@ -32,8 +32,16 @@ fbcpu=256 # FileBrowser CPU 使用百分比
 fbmemory="512M" # FileBrowser 内存使用上限，超过则 OOM Kill 重启容器
 publicip=$(curl -s http://icanhazip.com) # 获取外网 IP 地址，不一定成功
 dockersocket="/var/run/docker.sock"
-dockermirror="docker.mirrors.ustc.edu.cn/"
 
+can_curl_google() {
+    local ret_code=$(curl -s -I --connect-timeout 1 www.google.com -w %{http_code} | tail -n1)
+    if [ "$ret_code" -eq "200" ]; then
+        echo ""
+    else
+        echo "docker.mirrors.ustc.edu.cn/"
+    fi
+}
+dockermirror=`can_curl_google`
 
 # 以下为 cecho, credit to Tux
 # ---------------------
