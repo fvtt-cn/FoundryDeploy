@@ -33,16 +33,6 @@ fbmemory="512M" # FileBrowser 内存使用上限，超过则 OOM Kill 重启容�
 publicip=$(curl -s http://icanhazip.com) # 获取外网 IP 地址，不一定成功
 dockersocket="/var/run/docker.sock"
 
-can_curl_google() {
-    local ret_code=$(curl -s -I --connect-timeout 1 www.google.com -w %{http_code} | tail -n1)
-    if [ "$ret_code" -eq "200" ]; then
-        echo ""
-    else
-        echo "docker.mirrors.ustc.edu.cn/"
-    fi
-}
-dockermirror=`can_curl_google`
-
 # 以下为 cecho, credit to Tux
 # ---------------------
 cecho() {
@@ -276,6 +266,18 @@ EOF
 
 # 第三步，拉取镜像
 information "拉取需要使用到的镜像（境内服务器可能较慢，耐心等待）"
+
+can_curl_google() {
+    local ret_code=$(curl -s -I --connect-timeout 1 www.google.com -w %{http_code} | tail -n1)
+    if [ "$ret_code" -eq "200" ]; then
+        echo ""
+    else
+        echo "docker.mirrors.ustc.edu.cn/"
+    fi
+}
+dockermirror=`can_curl_google`
+
+[ -n "$dockermirror" ] && warning "判断应为境内服务器，切换为 USTC Docker Hub 镜像源" || warning "可连通 Google，使用默认的官方 Docker Hub 源"
 
 docker pull ${dockermirror}felddy/foundryvtt:release && docker tag ${dockermirror}felddy/foundryvtt:release felddy/foundryvtt:release && docker image inspect felddy/foundryvtt:release >/dev/null 2>&1 && success "拉取 FoundryVTT 成功" || { error "错误：拉取 FoundryVTT 失败" ; exit 3 ; }
 docker pull ${dockermirror}library/caddy && docker tag ${dockermirror}library/caddy caddy && docker image inspect caddy >/dev/null 2>&1 && success "拉取 Caddy 成功" || { error "错误：拉取 Caddy 失败" ; exit 3 ; }
