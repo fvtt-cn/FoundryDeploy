@@ -2,7 +2,7 @@
 
 # FoundryVTT 安装脚本默认参数
 
-SCRIPT_VERSION="1.4.0"
+SCRIPT_VERSION="1.4.1"
 
 # 容器名
 fvttname="fvtt"
@@ -339,6 +339,7 @@ else
 fi
 
 # 写 Caddyfile 标记头部
+echo >> caddyfile
 echo "#FvttCnScriptStart" >> $caddyfile
 
 # Foundry VTT 反代
