@@ -2,7 +2,7 @@
 
 # FoundryVTT 安装脚本默认参数
 
-SCRIPT_VERSION="1.3.6"
+SCRIPT_VERSION="1.4.0"
 
 # 容器名
 fvttname="fvtt"
@@ -22,6 +22,12 @@ fvttport="30000"
 fbport="30001"
 dashport="30002"
 
+# 镜像名
+fvttimage="felddy/foundryvtt:release"
+caddyimage="library/caddy"
+fbimage="filebrowser/filebrowser:alpine"
+dashimage="portainer/portainer-ce"
+
 # 杂项，此处直接使用 PWD 有一定风险
 config="$PWD/fvtt-config"
 caddyfile="$PWD/Caddyfile"  # Caddy 配置
@@ -32,6 +38,8 @@ fbcpu=256 # FileBrowser CPU 使用百分比
 fbmemory="512M" # FileBrowser 内存使用上限，超过则 OOM Kill 重启容器
 publicip=$(curl -s http://icanhazip.com) # 获取外网 IP 地址，不一定成功
 dockersocket="/var/run/docker.sock"
+
+# $FORCE_GLO 用于强制全球
 
 # 以下为 cecho, credit to Tux
 # ---------------------
@@ -101,8 +109,12 @@ success() {
     cecho -c 'green' "$@";
 }
 
+ecyan() {
+    cecho -c 'cyan' "$@"
+}
+
 echoLine() {
-    cecho -c 'cyan' "========================"
+    ecyan "========================"
 }
 # ---------------------
 
@@ -137,8 +149,10 @@ if [ -x "$(command -v docker)" ]; then
     information "Docker 已安装"
 else
     warning "Docker 未安装，安装中..."
-    curl -fsSL https://get.docker.com | sh -s -- --mirror Aliyun
-    
+    installDocker="curl -fsSL https://get.docker.com | sh"
+    [ "${FORCE_GLO,,}" = true ] || installDocker="${installDocker} -s -- --mirror Aliyun"
+    eval $installDocker
+
     # CentOS 安装后启动 Docker 服务
     lsb_dist=$( get_distribution )
     lsb_dist="$(echo "$lsb_dist" | tr '[:upper:]' '[:lower:]')"
@@ -164,7 +178,7 @@ fi
 
 # 确认 Docker 是否能启动容器，以 hello-world 镜像尝试
 if ! docker run --rm hello-world; then
-    error "错误：Docker 无法启动容器，请联系脚本作者"
+    error "错误：Docker 无法启动容器，请查看使用教程 FAQ 或联系脚本作者"
     exit 2
 fi
 
@@ -217,16 +231,16 @@ fi
 
 echoLine
 warning "请确认以下所有参数是否输入正确！！！"
-information -n "FVTT 账号：" && cecho -c 'cyan' $username
-information -n "FVTT 密码：" && cecho -c 'cyan' $password
-[ -n "$version" ] && ([[ $version == http* ]] && information -n "FVTT 下载地址：" || information -n "FVTT 安装版本：" && cecho -c 'cyan' $version)
-[ -n "$adminpass" ] && information -n "FVTT 管理密码：" && cecho -c 'cyan' $adminpass
-[ -n "$domain" ] && information -n "FVTT 域名：" && cecho -c 'cyan' $domain
-[ -n "$cdndomain" ] && information -n "FVTT 加速域名：" && cecho -c 'cyan' $cdndomain
-information -n "Web 文件管理器：" && [ "$fbyn" != "n" -a "$fbyn" != "N" ] && cecho -c 'cyan' "启用" || cecho -c 'cyan' "禁用"
-[ -n "$fbdomain" ] && information -n "Web 文件管理器域名：" && cecho -c 'cyan' $fbdomain
-information -n "Docker 仪表盘：" && [ "$dashyn" == "y" -o "$dashyn" == "Y" ] && cecho -c 'cyan' "启用" || cecho -c 'cyan' "禁用"
-[ -n "$dashdomain" ] && information -n "Docker 仪表盘域名：" && cecho -c 'cyan' $dashdomain
+information -n "FVTT 账号：" && ecyan $username
+information -n "FVTT 密码：" && ecyan $password
+[ -n "$version" ] && ([[ $version == http* ]] && information -n "FVTT 下载地址：" || information -n "FVTT 安装版本：" && ecyan $version)
+[ -n "$adminpass" ] && information -n "FVTT 管理密码：" && ecyan $adminpass
+[ -n "$domain" ] && information -n "FVTT 域名：" && ecyan $domain
+[ -n "$cdndomain" ] && information -n "FVTT 加速域名：" && ecyan $cdndomain
+information -n "Web 文件管理器：" && [ "$fbyn" != "n" -a "$fbyn" != "N" ] && ecyan "启用" || ecyan "禁用"
+[ -n "$fbdomain" ] && information -n "Web 文件管理器域名：" && ecyan $fbdomain
+information -n "Docker 仪表盘：" && [ "$dashyn" == "y" -o "$dashyn" == "Y" ] && ecyan "启用" || ecyan "禁用"
+[ -n "$dashdomain" ] && information -n "Docker 仪表盘域名：" && ecyan $dashdomain
 
 # 检查端口占用
 if test "$domain" || test "$fbdomain"; then
@@ -276,16 +290,17 @@ can_curl_google() {
     fi
 }
 dockermirror=`can_curl_google`
+[ "${FORCE_GLO,,}" = true ] && dockermirror=""
 
-[ -n "$dockermirror" ] && warning "判断应为境内服务器，切换为 USTC Docker Hub 镜像源" || warning "可连通 Google，使用默认的官方 Docker Hub 源"
+[ -n "$dockermirror" ] && warning "切换为 USTC Docker Hub 镜像源（境内加速）" || warning "使用默认的官方 Docker Hub 源"
 
-docker pull ${dockermirror}felddy/foundryvtt:release && docker tag ${dockermirror}felddy/foundryvtt:release felddy/foundryvtt:release && docker image inspect felddy/foundryvtt:release >/dev/null 2>&1 && success "拉取 FoundryVTT 成功" || { error "错误：拉取 FoundryVTT 失败" ; exit 3 ; }
-docker pull ${dockermirror}library/caddy && docker tag ${dockermirror}library/caddy caddy && docker image inspect caddy >/dev/null 2>&1 && success "拉取 Caddy 成功" || { error "错误：拉取 Caddy 失败" ; exit 3 ; }
+docker pull ${dockermirror}${fvttimage} && docker tag ${dockermirror}${fvttimage} ${fvttimage} && docker image inspect ${fvttimage} >/dev/null 2>&1 && success "拉取 FoundryVTT 成功" || { error "错误：拉取 FoundryVTT 失败" ; exit 3 ; }
+docker pull ${dockermirror}${caddyimage} && docker tag ${dockermirror}${caddyimage} ${caddyimage} && docker image inspect ${caddyimage} >/dev/null 2>&1 && success "拉取 Caddy 成功" || { error "错误：拉取 Caddy 失败" ; exit 3 ; }
 if [ "$fbyn" != "n" -a "$fbyn" != "N" ]; then
-    docker pull ${dockermirror}filebrowser/filebrowser:alpine && docker tag ${dockermirror}filebrowser/filebrowser:alpine filebrowser/filebrowser:alpine && docker image inspect filebrowser/filebrowser:alpine >/dev/null 2>&1 && success "拉取 FileBrowser 成功" || { error "错误：拉取 FileBrowser 失败" ; exit 3 ; }
+    docker pull ${dockermirror}${fbimage} && docker tag ${dockermirror}${fbimage} ${fbimage} && docker image inspect ${fbimage} >/dev/null 2>&1 && success "拉取 FileBrowser 成功" || { error "错误：拉取 FileBrowser 失败" ; exit 3 ; }
 fi
 if [ "$dashyn" == "y" -o "$dashyn" == "Y" ]; then
-    docker pull ${dockermirror}portainer/portainer-ce && docker tag ${dockermirror}portainer/portainer-ce portainer/portainer-ce && docker image inspect portainer/portainer-ce >/dev/null 2>&1 && success "拉取 Portainer 成功" || { error "错误：拉取 Portainer 失败" ; exit 3 ; }
+    docker pull ${dockermirror}${dashimage} && docker tag ${dockermirror}${dashimage} ${dashimage} && docker image inspect ${dashimage} >/dev/null 2>&1 && success "拉取 Portainer 成功" || { error "错误：拉取 Portainer 失败" ; exit 3 ; }
 fi
 
 # 第四步，开始部署
@@ -306,53 +321,60 @@ docker container inspect $caddyname >/dev/null 2>&1 && error "错误：Caddy 已
 success "网桥、挂载创建成功，且无同名容器"
 echoLine
 
-# 如果不使用存储配置，重写 Caddy 配置
-if [ "$useConfig" == "n" -o "$useConfig" == "N" ]; then
-    if [ -n "$domain" ]; then
-        # 有 Caddy 域名
-cat <<EOF >$caddyfile
-$domain {
-    reverse_proxy ${fvttname}:30000
-    encode zstd gzip
-}
-
-EOF
-    else
-        # 无 Caddy 域名
-cat <<EOF >$caddyfile
-:${fvttport} {
-    reverse_proxy ${fvttname}:30000
-    encode zstd gzip
-}
-
-EOF
-    fi
-
-    # FileBrowser
-    if [ "$fbyn" != "n" -a "$fbyn" != "N" ]; then
-        if [ -n "$fbdomain" ]; then
-        # 有 FB 域名
-cat <<EOF >>$caddyfile
-$fbdomain {
-    reverse_proxy ${fbname}:80
-    encode zstd gzip
-}
-
-EOF
+# 重写 Caddy 配置
+if [ -n "`awk '/#FvttCnScriptStart/,/#FvttCnScriptEnd/' ${caddyfile} 2>/dev/null | grep .`" ]; then
+    # 删除标记内部分
+    sed --in-place '/#FvttCnScriptStart/,/#FvttCnScriptEnd/d' ${caddyfile}
+else
+    # 强行清空已有 Caddyfile
+    if [ -n "`grep "reverse_proxy ${fvttname}:30000" ${caddyfile} 2>/dev/null`" ]; then
+        error -n "警告！！！确认是否清除 Caddyfile 所有内容（默认回车清除，否则输入n回车取消安装）" && read -p "[Y/n]：" cfrmyn
+        if [ "$cfrmyn" != "n" -a "$cfrmyn" != "N" ]; then
+            truncate -s 0 $caddyfile
         else
-        # 无 FB 域名
-cat <<EOF >>$caddyfile
-:${fbport} {
-    reverse_proxy ${fbname}:80
-    encode zstd gzip
-}
-
-EOF
+            error "错误：已放弃修改 Caddyfile"
+            exit 6
         fi
     fi
+fi
 
-    if [ -n "$cdndomain" ]; then
-    # CDN 域名，默认直接在 80 端口上 HOST HTTP。对境内服务器，应无备案问题，不然也用不了 CDN
+# 写 Caddyfile 标记头部
+echo "#FvttCnScriptStart" >> $caddyfile
+
+# Foundry VTT 反代
+[ -n "$domain" ] && echo "${domain} {" >> $caddyfile || echo ":${fvttport} {" >> $caddyfile
+cat <<EOF >>$caddyfile
+    reverse_proxy ${fvttname}:30000
+    encode zstd gzip
+}
+
+EOF
+
+# FileBrowser 反代
+if [ "$fbyn" != "n" -a "$fbyn" != "N" ]; then
+    [ -n "$fbdomain" ] && echo "${fbdomain} {" >> $caddyfile || echo ":${fbport} {" >> $caddyfile
+cat <<EOF >>$caddyfile
+    reverse_proxy ${fbname}:80
+    encode zstd gzip
+}
+
+EOF
+fi
+
+# Portainer 反代
+if [ "$dashyn" == "y" -o "$dashyn" == "Y" ]; then
+    [ -n "$dashdomain" ] && echo "${dashdomain} {" >> $caddyfile || echo ":${dashport} {" >> $caddyfile
+cat <<EOF >>$caddyfile
+    reverse_proxy ${dashname}:9000
+    encode zstd gzip
+}
+
+EOF
+fi
+
+# CDN 域名反代。默认直接在 80 端口上 HOST HTTP。对境内服务器，应无备案问题，不然也用不了 CDN
+# 重写 s-maxage 使 CDN 无视 max-age=0 ，仍然缓存
+if [ -n "$cdndomain" ]; then
 cat <<EOF >>$caddyfile
 http://${cdndomain} {
     reverse_proxy ${fvttname}:30000 {
@@ -362,39 +384,20 @@ http://${cdndomain} {
 }
 
 EOF
-    fi
-
-    if [ "$dashyn" == "y" -o "$dashyn" == "Y" ]; then
-        if [ -n "$dashdomain" ]; then
-        # 有 Portainer 域名
-cat <<EOF >>$caddyfile
-$dashdomain {
-    reverse_proxy ${dashname}:9000
-    encode zstd gzip
-}
-
-EOF
-        else
-        # 无 Portainer 域名
-cat <<EOF >>$caddyfile
-:${dashport} {
-    reverse_proxy ${dashname}:9000
-    encode zstd gzip
-}
-
-EOF
-        fi
-    fi
 fi
+
+# 写 Caddyfile 标记尾部
+echo "#FvttCnScriptEnd" >> $caddyfile
 
 cat $caddyfile 2>/dev/null && success "Caddy 配置成功" || { error "错误：无法读取 Caddy 配置文件" ; exit 6 ; }
 echoLine
 
 # 启动容器
 # Caddy，映射 UDP 端口，方便启用 HTTP/3
-caddyrun="docker run -d --name=${caddyname} --restart=unless-stopped --network=${bridge} -c=${caddycpu} -v ${caddyvolume}:/data -v ${caddyfile}:/etc/caddy/Caddyfile -p ${fvttport}:${fvttport} -p ${fvttport}:${fvttport}/udp -p ${fbport}:${fbport} -p ${fbport}:${fbport}/udp "
+caddyrun="docker run -d --name=${caddyname} --restart=unless-stopped --network=${bridge} -c=${caddycpu} -v ${caddyvolume}:/data -v ${caddyfile}:/etc/caddy/Caddyfile "
+caddyrun="${caddyrun}-p ${fvttport}:${fvttport} -p ${fvttport}:${fvttport}/udp -p ${fbport}:${fbport} -p ${fbport}:${fbport}/udp -p ${dashport}:${dashport} -p ${dashport}:${dashport}/udp "
 [ -n "$domain" -o -n "$fbdomain" ] && caddyrun="${caddyrun}-p 80:80 -p 80:80/udp -p 443:443 -p 443:443/udp "
-caddyrun="${caddyrun} caddy"
+caddyrun="${caddyrun} ${caddyimage}"
 eval $caddyrun && docker container inspect $caddyname >/dev/null 2>&1 && success "Caddy 容器启动成功" || { error "错误：Caddy 容器启动失败" ; exit 7 ; }
 
 # FVTT，使用 root:root 运行避免文件权限问题
@@ -403,14 +406,13 @@ fvttrun="${fvttrun}-e FOUNDRY_UID='root' -e FOUNDRY_GID='root' -e CONTAINER_PRES
 fvttrun="${fvttrun}-v ${fvttvolume}:/data -v ${fvttapp}:/home/foundry/resources/app "
 # 默认 Minify 静态 CSS/JS 文件
 fvttrun="${fvttrun}-e FOUNDRY_MINIFY_STATIC_FILES='true' "
-
 # 账号密码 / 直链下载地址
 [ -n "$username" -a -n "$password" ] && fvttrun="${fvttrun}-e FOUNDRY_USERNAME='${username}' -e FOUNDRY_PASSWORD='${password}' "
 [ -n "$version" ] && { [[ $version == http* ]] && fvttrun="${fvttrun}-e FOUNDRY_RELEASE_URL='${version}' " || fvttrun="${fvttrun}-e FOUNDRY_VERSION='${version}' "; }
 [ -n "$adminpass" ] && fvttrun="${fvttrun}-e FOUNDRY_ADMIN_KEY='${adminpass}' "
 [ -n "$domain" ] && fvttrun="${fvttrun}-e FOUNDRY_HOSTNAME='${domain}' -e FOUNDRY_PROXY_SSL='true' -e FOUNDRY_PROXY_PORT='443' "
 [ -z "$domain" ] && fvttrun="${fvttrun}-e FOUNDRY_PROXY_PORT='${fvttport}' "
-fvttrun="${fvttrun} felddy/foundryvtt:release"
+fvttrun="${fvttrun} ${fvttimage}"
 eval $fvttrun && docker container inspect $fvttname >/dev/null 2>&1 && success "FoundryVTT 容器启动成功" || { error "错误：FoundryVTT 容器启动失败" ; exit 7 ; }
 
 # FileBrowser
@@ -418,13 +420,13 @@ if [ "$fbyn" != "n" -a "$fbyn" != "N" ]; then
     # 如果没有数据库文件，创建一个
     [ ! -f $fbdatabase ] && truncate -s 0 $fbdatabase
     # 写死 fvttapp 映射路径为 /srv/APP
-    fbrun="docker run -d --name=${fbname} --restart=unless-stopped --network=${bridge} -c=${fbcpu} -m=${fbmemory} -v ${fvttvolume}:/srv -v ${fvttapp}:/srv/APP -v ${fbdatabase}:/database.db filebrowser/filebrowser:alpine"
+    fbrun="docker run -d --name=${fbname} --restart=unless-stopped --network=${bridge} -c=${fbcpu} -m=${fbmemory} -v ${fvttvolume}:/srv -v ${fvttapp}:/srv/APP -v ${fbdatabase}:/database.db ${fbimage}"
     eval $fbrun && docker container inspect $fbname >/dev/null 2>&1 && success "FileBrowser 容器启动成功" || { error "FileBrowser 容器启动失败" ; exit 7 ; }
 fi
 
 # Portainer
 if [ "$dashyn" == "y" -o "$dashyn" == "Y" ]; then
-    dashrun="docker run -d --name=${dashname} --restart=unless-stopped --network=${bridge} -v ${dashvolume}:/data -v ${dockersocket}:/var/run/docker.sock portainer/portainer-ce"
+    dashrun="docker run -d --name=${dashname} --restart=unless-stopped --network=${bridge} -v ${dashvolume}:/data -v ${dockersocket}:/var/run/docker.sock ${dashimage}"
     eval $dashrun && docker container inspect $dashname >/dev/null 2>&1 && success "Portainer 容器启动成功" || { error "Portainer 容器启动失败" ; exit 7 ; }
 fi
 
@@ -433,18 +435,18 @@ echoLine
 # 成功，列出访问方式
 success "FoundryVTT 已成功部署！服务器设定如下："
 echoLine
-information -n "FoundryVTT 访问地址： " && [ -n "$domain" ] && cecho -c 'cyan' $domain || cecho -c 'cyan' "${publicip}:${fvttport}"
-[ -n "$cdndomain" ] && information -n "FoundryVTT 加速访问地址： " && cecho -c 'cyan' $cdndomain
-[ -n "$adminpass" ] && information -n "FVTT 管理密码：" && cecho -c 'cyan' $adminpass
+information -n "FoundryVTT 访问地址： " && [ -n "$domain" ] && ecyan $domain || ecyan "${publicip:-服务器地址}:${fvttport}"
+[ -n "$cdndomain" ] && information -n "FoundryVTT 加速访问地址： " && ecyan $cdndomain
+[ -n "$adminpass" ] && information -n "FVTT 管理密码：" && ecyan $adminpass
 if [ "$fbyn" != "n" -a "$fbyn" != "N" ]; then
-    information -n "Web 文件管理器访问地址： " && [ -n "$fbdomain" ] && cecho -c 'cyan' $fbdomain || cecho -c 'cyan' "${publicip}:${fbport}"
-    cecho -c 'cyan' "Web 文件管理器下 APP 目录为 Foundry VTT 程序所在目录"
+    information -n "Web 文件管理器访问地址： " && [ -n "$fbdomain" ] && ecyan $fbdomain || ecyan "${publicip:-服务器地址}:${fbport}"
+    ecyan "Web 文件管理器下 APP 目录为 Foundry VTT 程序所在目录"
     # Web 文件管理器的用户名/密码可能在数据库里被修改
-    [ -z "$@" ] && information -n "Web 文件管理器用户名/密码： " && cecho -c 'cyan' "admin/admin （建议登录后修改）"
+    [ -z "$@" ] && information -n "Web 文件管理器用户名/密码： " && ecyan "admin/admin （建议登录后修改）"
 fi
 if [ "$dashyn" == "y" -o "$dashyn" == "Y" ]; then
-    information -n "Docker 仪表盘访问地址： " && [ -n "$dashdomain" ] && cecho -c 'cyan' $dashdomain || cecho -c 'cyan' "${publicip}:${dashport}"
-    [ -z "$@" ] && cecho -c 'cyan' "Docker 仪表盘在第一次运行时需要设置密码"
+    information -n "Docker 仪表盘访问地址： " && [ -n "$dashdomain" ] && ecyan $dashdomain || ecyan "${publicip:-服务器地址}:${dashport}"
+    [ -z "$@" ] && ecyan "Docker 仪表盘在第一次运行时需要设置密码"
 fi
 echoLine
 fi
@@ -516,6 +518,37 @@ clear() {
 
         success "清除完毕！"
     fi
+}
+
+check() {
+    success "以下是核心容器运行状态；容器状态需要显示为 running，可访问性需要显示为 healthy"
+    information -n "FoundryVTT  容器状态：" && ecyan `docker inspect --format '{{json .State.Status}}' ${fvttname} 2>&1 | tail -1`
+    information -n "FoundryVTT  可访问性：" && ecyan `docker inspect --format '{{json .State.Health.Status}}' ${fvttname} 2>&1 | tail -1`
+    information -n "Caddy       容器状态：" && ecyan `docker inspect --format '{{json .State.Status}}' ${caddyname} 2>&1 | tail -1`
+    echoLine
+
+    success "以下是可选配置项的状态；如若部署时没有安装，则显示 Error: No such object 为正常情况"
+    information -n "FileBrowser 容器状态：" && ecyan `docker inspect --format '{{json .State.Status}}' ${fbname} 2>&1 | tail -1`
+    information -n "Portainer   容器状态：" && ecyan `docker inspect --format '{{json .State.Status}}' ${dashname} 2>&1 | tail -1`
+    echoLine
+
+    success "以下是 FVTT 软件下载状态；可以正常访问时需要显示为 下载完毕/可以运行"
+    local installing=`docker logs ${fvttname} 2>/dev/null | grep 'Installing Foundry Virtual Tabletop' -n | cut -f1 -d: | tail -1`
+    local downloading=`docker logs ${fvttname} 2>/dev/null | grep 'Downloading Foundry Virtual Tabletop' -n | cut -f1 -d: | tail -1`
+    information -n "FoundryVTT  下载状态：" && [ "${installing:--1}" -lt "${downloading:-0}" ] && warning "正在下载" || ecyan "下载完毕"
+    local appDir=`docker volume inspect --format '{{ .Mountpoint }}' ${fvttapp} 2>/dev/null | head -1`
+    information -n "FoundryVTT  文件状态：" && [ -f "${appDir}/main.js" ] && ecyan "可以运行" || error "文件缺失"
+    echoLine
+
+    success "以下是 FVTT 杂项检查；"
+    information -n "FVTT-CN     脚本版本：" && cecho -c 'magenta' "自动部署脚本 Ver.${SCRIPT_VERSION}"
+    local invalidPwd=`docker logs ${fvttname} 2>/dev/null | grep 'Unable to authenticate' | tail -1`
+    information -n "FoundryVTT  登录状态：" && [ -z "$invalidPwd" ] && error "无法登入" || ecyan "可以登入"
+    information -n "FoundryVTT  脚本配置：" && [ -f "$config" ] && ecyan "已存储安装参数" || warning "未存储安装参数"
+    # 没有完成安装，但是有在下载，尾部应当是最新下载状态
+    [ -z "$installing" -a -n "$downloading" ] && information "FoundryVTT  下载速度：" || information "FoundryVTT  最新日志："
+    docker logs ${fvttname} 2>/dev/null | tail -10
+    [ -z "$installing" -a -n "$downloading" ] && cecho -c 'black' "（从左至右）总进度 | 总体积 | 下载进度 | 已下载 | 上传进度 | 已上传 | 平均下载速度 | 上传速度 | 总时间 | 已下载时间 | 剩余时间 | 当前下载速度"
 }
 
 "$@"
