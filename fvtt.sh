@@ -552,7 +552,7 @@ check() {
     # 没有完成安装，但是有在下载，尾部应当是最新下载状态
     [ -z "$installing" -a -n "$downloading" ] && information "FoundryVTT  下载速度：" || information "FoundryVTT  最新日志："
     docker logs ${fvttname} 2>/dev/null | tail -10
-    [ -z "$installing" -a -n "$downloading" ] && cecho -c 'black' "（从左至右）总进度 | 总体积 | 下载进度 | 已下载 | 上传进度 | 已上传 | 平均下载速度 | 上传速度 | 总时间 | 已下载时间 | 剩余时间 | 当前下载速度"
+    [ -z "$installing" -a -n "$downloading" ] && echo "（从左至右）总进度 | 总体积 | 下载进度 | 已下载 | 上传进度 | 已上传 | 平均下载速度 | 上传速度 | 总时间 | 已下载时间 | 剩余时间 | 当前下载速度"
 }
 
 "$@"
