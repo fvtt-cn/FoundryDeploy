@@ -2,13 +2,15 @@
 
 # FoundryVTT 安装脚本默认参数
 
-SCRIPT_VERSION="1.4.6"
+SCRIPT_VERSION="1.5.0"
 
 # 容器名
 fvttname="fvtt"
 caddyname="caddy"
 fbname="filebr"
 dashname="portainer"
+
+optimname="optimimages"
 
 # 网桥/挂载名
 bridge="caddy_network"
@@ -28,6 +30,8 @@ caddyimage="library/caddy"
 fbimage="filebrowser/filebrowser:alpine"
 dashimage="portainer/portainer-ce"
 
+optimimage="varnav/optimize-images"
+
 # 杂项，此处直接使用 PWD 有一定风险
 config="$PWD/fvtt-config"
 caddyfile="$PWD/Caddyfile"  # Caddy 配置
@@ -39,10 +43,12 @@ fbmemory="512M" # FileBrowser 内存使用上限，超过则 OOM Kill 重启容�
 publicip=$(curl -s http://icanhazip.com) # 获取外网 IP 地址，不一定成功
 dockersocket="/var/run/docker.sock"
 
+optimempty="optimimages_empty"
+
 # $FORCE_GLO 用于强制全球
 
-# 以下为 cecho, credit to Tux
 # ---------------------
+# 以下为 cecho, credit to Tux
 cecho() {
     declare -A colors;
     colors=(\
@@ -117,7 +123,6 @@ echoLine() {
     ecyan "========================"
 }
 # ---------------------
-
 # 获取发行版名称，credit to docker
 get_distribution() {
     lsb_dist=""
@@ -128,6 +133,16 @@ get_distribution() {
     # Returning an empty string here should be alright since the
     # case statements don't act unless you provide an actual value
     echo "$lsb_dist"
+}
+# ---------------------
+# 判断是否需要使用 Docker Hub 镜像
+can_curl_google() {
+    local ret_code=$(curl -s -I --connect-timeout 1 www.google.com -w %{http_code} | tail -n1)
+    if [ "$ret_code" -eq "200" ]; then
+        echo ""
+    else
+        echo "docker.mirrors.ustc.edu.cn/"
+    fi
 }
 # ---------------------
 
@@ -281,14 +296,6 @@ EOF
 # 第三步，拉取镜像
 information "拉取需要使用到的镜像（境内服务器可能较慢，耐心等待）"
 
-can_curl_google() {
-    local ret_code=$(curl -s -I --connect-timeout 1 www.google.com -w %{http_code} | tail -n1)
-    if [ "$ret_code" -eq "200" ]; then
-        echo ""
-    else
-        echo "docker.mirrors.ustc.edu.cn/"
-    fi
-}
 dockermirror=`can_curl_google`
 [ "${FORCE_GLO,,}" = true ] && dockermirror=""
 
@@ -468,6 +475,7 @@ remove() {
         docker rm -f $caddyname
         docker rm -f $fbname
         docker rm -f $dashname
+        docker rm -f $optimname
 
         # 移除网桥
         docker network rm $bridge
@@ -495,6 +503,7 @@ restart() {
         docker restart $caddyname
         docker restart $fbname
         docker restart $dashname
+        docker restart $optimname
 
         success "重启完毕！"
     fi
@@ -512,10 +521,11 @@ clear() {
         docker rm -f $caddyname
         docker rm -f $fbname
         docker rm -f $dashname
+        docker rm -f $optimname
 
         # 移除网桥、挂载
         docker network rm $bridge
-        docker volume rm $caddyvolume $fvttvolume $fvttapp $dashvolume
+        docker volume rm $caddyvolume $fvttvolume $fvttapp $dashvolume $optimempty
 
         # 删除创建的文件
         rm $caddyfile $fbdatabase $config
@@ -559,6 +569,31 @@ check() {
     [ -z "$installing" -a -n "$downloading" ] && information "FoundryVTT  下载速度：" || information "FoundryVTT  最新日志："
     docker logs ${fvttname} 2>/dev/null | tail -10
     [ -z "$installing" -a -n "$downloading" ] && echo "（从左至右）总进度 | 总体积 | 下载进度 | 已下载 | 上传进度 | 已上传 | 平均下载速度 | 上传速度 | 总时间 | 已下载时间 | 剩余时间 | 当前下载速度"
+}
+
+do_optim() {
+    dockermirror=`can_curl_google`
+    [ "${FORCE_GLO,,}" = true ] && dockermirror=""
+
+    [ -n "$dockermirror" ] && warning "切换为 USTC Docker Hub 镜像源（境内加速）" || warning "使用默认的官方 Docker Hub 源"
+    docker pull ${dockermirror}${optimimage} && docker tag ${dockermirror}${optimimage} ${optimimage} && docker image inspect ${optimimage} >/dev/null 2>&1 && success "拉取 Optimize-Images 成功" || { error "错误：拉取 Optimize-Images 失败" ; exit 101 ; }
+    
+    # 运行，忽略 modules/systems
+    docker volume create ${optimempty} || warning "警告：创建挂载 ${optimempty} 失败。通常是因为已经创建，可无视该警告"
+    optimrun="docker run -itd --name=${optimname} --restart=on-failure --network=none -v $fvttvolume:/data -v ${optimempty}:/data/Data/modules/ -v ${optimempty}:/data/Data/systems/ --watch-directory /data"
+    eval $optimrun && docker container inspect $optimname >/dev/null 2>&1 && success "Optimize-Images 容器启动成功" || { error "Optimize-Images 容器启动失败" ; exit 102 ; }
+}
+
+undo_optim() {
+    error -n "警告！！！使用该命令将移除图片优化容器" && read -p "[y/N]：" optimrmyn
+    if [ "$optimrmyn" == "y" -o "$optimrmyn" == "Y" ]; then
+        # 移除容器
+        docker rm -f $optimname
+        # 移除挂载
+        docker volume rm $optimempty
+
+        success "移除图片优化容器完毕！"
+    fi
 }
 
 "$@"
