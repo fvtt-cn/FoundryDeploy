@@ -2,7 +2,7 @@
 
 # FoundryVTT 安装脚本默认参数
 
-SCRIPT_VERSION="1.4.2"
+SCRIPT_VERSION="1.4.3"
 
 # 容器名
 fvttname="fvtt"
@@ -174,7 +174,7 @@ else
 fi
 
 # 安装后，仍需检查
-[ ! -x "$(command -v docker)" ] && exit $?
+[ ! -x "$(command -v docker)" ] && error "错误：安装 Docker 失败，请查看使用教程 FAQ 或联系脚本作者" && exit $?
 
 # 确认 Docker 是否能启动容器，以 hello-world 镜像尝试
 if ! docker run --rm hello-world; then
@@ -245,20 +245,20 @@ information -n "Docker 仪表盘：" && [ "$dashyn" == "y" -o "$dashyn" == "Y" ]
 # 检查端口占用
 if test "$domain" || test "$fbdomain"; then
     # 使用域名，检查 80/443
-    (echo >/dev/tcp/localhost/80) &>/dev/null && { error "80 端口被占用，无法使用域名部署" ; exit 2 ; } || information "80 端口未占用，可部署 HTTP"
-    (echo >/dev/tcp/localhost/443) &>/dev/null && { error "443 端口被占用，无法使用域名部署" ; exit 2 ; } || information "443 端口未占用，可部署 HTTPS"
+    (echo >/dev/tcp/localhost/80) &>/dev/null && { error "错误：80 端口被占用，无法使用域名部署" ; exit 2 ; } || information "80 端口未占用，可部署 HTTP"
+    (echo >/dev/tcp/localhost/443) &>/dev/null && { error "错误：443 端口被占用，无法使用域名部署" ; exit 2 ; } || information "443 端口未占用，可部署 HTTPS"
 fi
 if [ -z "$domain" ]; then
     # 检查 30000
-    (echo >/dev/tcp/localhost/$fvttport) &>/dev/null && { error "${fvttport} 端口被占用，无法部署" ; exit 2 ; } || information "${fvttport} 端口未占用，可部署"
+    (echo >/dev/tcp/localhost/$fvttport) &>/dev/null && { error "错误：${fvttport} 端口被占用，无法部署" ; exit 2 ; } || information "${fvttport} 端口未占用，可部署"
 fi
 if [ "$fbyn" != "n" -a "$fbyn" != "N" -a -z "$fbdomain" ]; then
     # 检查 30001
-    (echo >/dev/tcp/localhost/$fbport) &>/dev/null && { error "${fbport} 端口被占用，无法部署" ; exit 2 ; } || information "${fbport} 端口未占用，可部署"
+    (echo >/dev/tcp/localhost/$fbport) &>/dev/null && { error "错误：${fbport} 端口被占用，无法部署" ; exit 2 ; } || information "${fbport} 端口未占用，可部署"
 fi
 if [ -z "$dashdomain" -a "$dashyn" == "y" -o "$dashyn" == "Y" ]; then
     # 检查 30002
-    (echo >/dev/tcp/localhost/$dashport) &>/dev/null && { error "${dashport} 端口被占用，无法部署" ; exit 2 ; } || information "${dashport} 端口未占用，可部署"
+    (echo >/dev/tcp/localhost/$dashport) &>/dev/null && { error "错误：${dashport} 端口被占用，无法部署" ; exit 2 ; } || information "${dashport} 端口未占用，可部署"
 fi
 
 read -s -p "按下回车确认参数正确，否则按下 Ctrl+C 退出"
@@ -305,7 +305,7 @@ fi
 
 # 第四步，开始部署
 # 创建网桥和挂载
-docker network create $bridge || warning "错误：创建网桥 ${bridge} 失败。通常是因为已经创建，如果正在升级，请无视该警告"
+docker network create $bridge || warning "警告：创建网桥 ${bridge} 失败。通常是因为已经创建，如果正在升级，请无视该警告"
 
 docker volume create $fvttvolume || warning "警告：创建挂载 ${fvttvolume} 失败。通常是因为已经创建，如果正在升级，请无视该警告"
 docker volume create $fvttapp || warning "警告：创建挂载 ${fvttapp} 失败。通常是因为已经创建，如果正在升级，请无视该警告"
@@ -332,7 +332,7 @@ else
         if [ "$cfrmyn" != "n" -a "$cfrmyn" != "N" ]; then
             truncate -s 0 $caddyfile
         else
-            error "错误：已放弃修改 Caddyfile"
+            error "错误：已放弃修改 Caddyfile。如需部署，请重试并允许清除 Caddyfile"
             exit 6
         fi
     fi
@@ -523,21 +523,21 @@ clear() {
 
 check() {
     success "以下是核心容器运行状态；容器状态需要显示为 running，可访问性需要显示为 healthy"
-    information -n "FoundryVTT  容器状态：" && ecyan `docker inspect --format '{{json .State.Status}}' ${fvttname} 2>&1 | tail -1`
-    information -n "FoundryVTT  可访问性：" && ecyan `docker inspect --format '{{json .State.Health.Status}}' ${fvttname} 2>&1 | tail -1`
-    information -n "Caddy       容器状态：" && ecyan `docker inspect --format '{{json .State.Status}}' ${caddyname} 2>&1 | tail -1`
+    information -n "FoundryVTT  容器状态：" && ecyan "`docker inspect --format '{{json .State.Status}}' ${fvttname} 2>&1 | tail -1`"
+    information -n "FoundryVTT  可访问性：" && ecyan "`docker inspect --format '{{json .State.Health.Status}}' ${fvttname} 2>&1 | tail -1`"
+    information -n "Caddy       容器状态：" && ecyan "`docker inspect --format '{{json .State.Status}}' ${caddyname} 2>&1 | tail -1`"
     echoLine
 
     success "以下是可选配置项的状态；如若部署时没有安装，则显示 Error: No such object 为正常情况"
-    information -n "FileBrowser 容器状态：" && ecyan `docker inspect --format '{{json .State.Status}}' ${fbname} 2>&1 | tail -1`
-    information -n "Portainer   容器状态：" && ecyan `docker inspect --format '{{json .State.Status}}' ${dashname} 2>&1 | tail -1`
+    information -n "FileBrowser 容器状态：" && ecyan "`docker inspect --format '{{json .State.Status}}' ${fbname} 2>&1 | tail -1`"
+    information -n "Portainer   容器状态：" && ecyan "`docker inspect --format '{{json .State.Status}}' ${dashname} 2>&1 | tail -1`"
     echoLine
 
     success "以下是 FVTT 软件下载状态；可以正常访问时需要显示为 下载完毕/可以运行"
     local installing=`docker logs ${fvttname} 2>/dev/null | grep 'Installing Foundry Virtual Tabletop' -n | cut -f1 -d: | tail -1`
     local downloading=`docker logs ${fvttname} 2>/dev/null | grep 'Downloading Foundry Virtual Tabletop' -n | cut -f1 -d: | tail -1`
     local exists=`docker logs ${fvttname} 2>/dev/null | grep 'Foundry Virtual Tabletop.*is installed' -n | cut -f1 -d: | tail -1`
-    information -n "FoundryVTT  下载状态：" && [ "${installing:--1}" -lt "${downloading:-0}" -a "${exists:--1}" -lt "${downloading:-0}" ] && warning "正在下载" || ecyan "下载完毕"
+    information -n "FoundryVTT  下载状态：" && [ "${installing:--1}" -lt "${downloading:-0}" -a "${exists:--1}" -lt "${downloading:-0}" ] && warning "未完成" || ecyan "下载完毕"
     local appDir=`docker volume inspect --format '{{ .Mountpoint }}' ${fvttapp} 2>/dev/null | head -1`
     information -n "FoundryVTT  文件状态：" && [ -f "${appDir}/main.js" ] && ecyan "可以运行" || error "文件缺失"
     echoLine
