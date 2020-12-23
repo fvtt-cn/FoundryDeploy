@@ -2,7 +2,7 @@
 
 # FoundryVTT 安装脚本默认参数
 
-SCRIPT_VERSION="1.5.0"
+SCRIPT_VERSION="1.5.1"
 
 # 容器名
 fvttname="fvtt"
@@ -580,7 +580,7 @@ do_optim() {
     
     # 运行，忽略 modules/systems
     docker volume create ${optimempty} || warning "警告：创建挂载 ${optimempty} 失败。通常是因为已经创建，可无视该警告"
-    optimrun="docker run -itd --name=${optimname} --restart=on-failure --network=none -v $fvttvolume:/data -v ${optimempty}:/data/Data/modules/ -v ${optimempty}:/data/Data/systems/ --watch-directory /data"
+    optimrun="docker run -itd --name=${optimname} --restart=on-failure --network=none -v $fvttvolume:/data -v ${optimempty}:/data/Data/modules/ -v ${optimempty}:/data/Data/systems/ varnav/optimize-images --watch-directory /data"
     eval $optimrun && docker container inspect $optimname >/dev/null 2>&1 && success "Optimize-Images 容器启动成功" || { error "Optimize-Images 容器启动失败" ; exit 102 ; }
 }
 
