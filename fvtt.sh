@@ -2,7 +2,7 @@
 
 # FoundryVTT 安装脚本默认参数
 
-SCRIPT_VERSION="1.5.3"
+SCRIPT_VERSION="1.5.4"
 
 # 容器名
 fvttname="fvtt"
@@ -547,6 +547,7 @@ check() {
     success "以下是可选配置项的状态；如若部署时没有选择安装，则显示 Error: No such object 为正常情况"
     information -n "FileBrowser 容器状态：" && ecyan "`docker inspect --format '{{json .State.Status}}' ${fbname} 2>&1 | tail -1`"
     information -n "Portainer   容器状态：" && ecyan "`docker inspect --format '{{json .State.Status}}' ${dashname} 2>&1 | tail -1`"
+    information -n "ImageOptim  容器状态：" && ecyan "`docker inspect --format '{{json .State.Status}}' ${optimname} 2>&1 | tail -1`"
     echoLine
 
     success "以下是 FVTT 软件下载状态；可以正常访问时需要显示为 下载完毕/可以运行"
@@ -576,12 +577,12 @@ do_optim() {
     [ "${FORCE_GLO,,}" = true ] && dockermirror=""
 
     [ -n "$dockermirror" ] && warning "切换为 USTC Docker Hub 镜像源（境内加速）" || warning "使用默认的官方 Docker Hub 源"
-    docker pull ${dockermirror}${optimimage} && docker tag ${dockermirror}${optimimage} ${optimimage} && docker image inspect ${optimimage} >/dev/null 2>&1 && success "拉取 image_optim 成功" || { error "错误：拉取 image_optim 失败" ; exit 101 ; }
+    docker pull ${dockermirror}${optimimage} && docker tag ${dockermirror}${optimimage} ${optimimage} && docker image inspect ${optimimage} >/dev/null 2>&1 && success "拉取 ImageOptim 成功" || { error "错误：拉取 ImageOptim 失败" ; exit 101 ; }
     
     # 运行，忽略 modules/systems
     docker volume create ${optimempty} || warning "警告：创建挂载 ${optimempty} 失败。通常是因为已经创建，可无视该警告"
     optimrun="docker run -itd --name=${optimname} --restart=unless-stopped --network=none -c=${fbcpu} -v ${fvttvolume}:/data -v ${optimempty}:/data/Data/modules/ -v ${optimempty}:/data/Data/systems/ ${optimimage}"
-    eval $optimrun && docker container inspect $optimname >/dev/null 2>&1 && success "image_optim 容器启动成功" || { error "image_optim 容器启动失败" ; exit 102 ; }
+    eval $optimrun && docker container inspect $optimname >/dev/null 2>&1 && success "ImageOptim 容器启动成功" || { error "ImageOptim 容器启动失败" ; exit 102 ; }
 }
 
 undo_optim() {
