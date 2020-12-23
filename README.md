@@ -7,16 +7,19 @@ FoundryVTT 部署脚本
 - [x] 一台 Linux 服务器
 - [ ] 服务器绑定域名（可选）
 
-
 # 使用方法
+
+## 完整教程
+[FVTT-CN 教程页](https://fvtt-cn.github.io/deployment/gettingstarted/docker/)
+
+*如果打不开上述的 Github Pages，可以打开 Gitee 镜像*：[FVTT-CN 教程镜像](https://fvtt-cn.gitee.io/deployment/gettingstarted/docker/)
 
 ## 下载脚本
 首先，如果还没有下载脚本，则下载：
 
 *如果脚本需要更新，同样使用以下命令对**脚本**进行更新*
 ```bash
-wget -O fvtt.sh https://gitee.com/mitchx7/FoundryDeploy/raw/master/fvtt.sh
-sudo chmod +x fvtt.sh
+wget -O fvtt.sh https://gitee.com/mitchx7/FoundryDeploy/raw/master/fvtt.sh && sudo chmod +x fvtt.sh
 ```
 
 ## 安装
@@ -46,6 +49,12 @@ sudo ./fvtt.sh recreate
 ```bash
 sudo ./fvtt.sh clear
 ```
+
+## 诊断
+```bash
+sudo ./fvtt.sh check
+```
+将会输出对 FVTT 部署的诊断结果。
 
 # FAQ
 
