@@ -2,7 +2,7 @@
 
 # FoundryVTT 安装脚本默认参数
 
-SCRIPT_VERSION="1.5.2"
+SCRIPT_VERSION="1.5.3"
 
 # 容器名
 fvttname="fvtt"
@@ -576,11 +576,11 @@ do_optim() {
     [ "${FORCE_GLO,,}" = true ] && dockermirror=""
 
     [ -n "$dockermirror" ] && warning "切换为 USTC Docker Hub 镜像源（境内加速）" || warning "使用默认的官方 Docker Hub 源"
-    docker pull ${dockermirror}${optimimage} && docker tag ${dockermirror}${optimimage} ${optimimage} && docker image inspect ${optimimage} >/dev/null 2>&1 && success "拉取 Optimize-Images 成功" || { error "错误：拉取 Optimize-Images 失败" ; exit 101 ; }
+    docker pull ${dockermirror}${optimimage} && docker tag ${dockermirror}${optimimage} ${optimimage} && docker image inspect ${optimimage} >/dev/null 2>&1 && success "拉取 image_optim 成功" || { error "错误：拉取 image_optim 失败" ; exit 101 ; }
     
     # 运行，忽略 modules/systems
     docker volume create ${optimempty} || warning "警告：创建挂载 ${optimempty} 失败。通常是因为已经创建，可无视该警告"
-    optimrun="docker run -itd --name=${optimname} --restart=unless-stopped --network=none -v ${fvttvolume}:/data -v ${optimempty}:/data/Data/modules/ -v ${optimempty}:/data/Data/systems/ ${optimimage}"
+    optimrun="docker run -itd --name=${optimname} --restart=unless-stopped --network=none -c=${fbcpu} -v ${fvttvolume}:/data -v ${optimempty}:/data/Data/modules/ -v ${optimempty}:/data/Data/systems/ ${optimimage}"
     eval $optimrun && docker container inspect $optimname >/dev/null 2>&1 && success "image_optim 容器启动成功" || { error "image_optim 容器启动失败" ; exit 102 ; }
 }
 
