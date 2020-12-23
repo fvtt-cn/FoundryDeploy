@@ -2,7 +2,7 @@
 
 # FoundryVTT 安装脚本默认参数
 
-SCRIPT_VERSION="1.4.3"
+SCRIPT_VERSION="1.4.4"
 
 # 容器名
 fvttname="fvtt"
@@ -544,8 +544,9 @@ check() {
 
     success "以下是 FVTT 杂项检查；"
     information -n "FVTT-CN     脚本版本：" && cecho -c 'magenta' "自动部署脚本 Ver.${SCRIPT_VERSION}"
-    local invalidPwd=`docker logs ${fvttname} 2>/dev/null | grep 'Unable to authenticate' | tail -1`
-    information -n "FoundryVTT  登录状态：" && [ -z "$invalidPwd" ] && ecyan "可以登入" || error "无法登入"
+    local loginTries=`docker logs ${fvttname} 2>/dev/null | grep 'Using FOUNDRY_USERNAME and FOUNDRY_PASSWORD to authenticate' | wc -l`
+    information -n "FoundryVTT  登录状态："
+    [ "${loginTries:-0}" -gt 3 ] && error "登录失败" || { [ "${loginTries:-0}" -eq 1 ] && ecyan "登录成功" || warning "未尝试登入"; }
     information -n "FoundryVTT  脚本配置：" && [ -f "$config" ] && ecyan "已存储安装参数" || warning "未存储安装参数"
     # 没有完成安装，但是有在下载，尾部应当是最新下载状态
     [ -z "$installing" -a -n "$downloading" ] && information "FoundryVTT  下载速度：" || information "FoundryVTT  最新日志："
