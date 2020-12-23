@@ -2,7 +2,7 @@
 
 # FoundryVTT 安装脚本默认参数
 
-SCRIPT_VERSION="1.4.5"
+SCRIPT_VERSION="1.4.6"
 
 # 容器名
 fvttname="fvtt"
@@ -471,6 +471,12 @@ remove() {
 
         # 移除网桥
         docker network rm $bridge
+
+        # 清理 Caddyfile
+        if [ -n "`awk '/#FvttCnScriptStart/,/#FvttCnScriptEnd/' ${caddyfile} 2>/dev/null | grep .`" ]; then
+            # 删除标记内部分
+            sed --in-place '/#FvttCnScriptStart/,/#FvttCnScriptEnd/d' ${caddyfile}
+        end
 
         # 清理 Docker 多余镜像
         docker image prune -f
