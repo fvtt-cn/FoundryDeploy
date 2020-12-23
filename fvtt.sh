@@ -484,7 +484,7 @@ remove() {
         if [ -n "`awk '/#FvttCnScriptStart/,/#FvttCnScriptEnd/' ${caddyfile} 2>/dev/null | grep .`" ]; then
             # 删除标记内部分
             sed --in-place '/#FvttCnScriptStart/,/#FvttCnScriptEnd/d' ${caddyfile}
-        end
+        fi
 
         # 清理 Docker 多余镜像
         docker image prune -f
