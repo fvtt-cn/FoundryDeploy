@@ -2,7 +2,7 @@
 
 # FoundryVTT 安装脚本默认参数
 
-SCRIPT_VERSION="1.4.4"
+SCRIPT_VERSION="1.4.5"
 
 # 容器名
 fvttname="fvtt"
@@ -528,7 +528,7 @@ check() {
     information -n "Caddy       容器状态：" && ecyan "`docker inspect --format '{{json .State.Status}}' ${caddyname} 2>&1 | tail -1`"
     echoLine
 
-    success "以下是可选配置项的状态；如若部署时没有安装，则显示 Error: No such object 为正常情况"
+    success "以下是可选配置项的状态；如若部署时没有选择安装，则显示 Error: No such object 为正常情况"
     information -n "FileBrowser 容器状态：" && ecyan "`docker inspect --format '{{json .State.Status}}' ${fbname} 2>&1 | tail -1`"
     information -n "Portainer   容器状态：" && ecyan "`docker inspect --format '{{json .State.Status}}' ${dashname} 2>&1 | tail -1`"
     echoLine
@@ -544,9 +544,10 @@ check() {
 
     success "以下是 FVTT 杂项检查；"
     information -n "FVTT-CN     脚本版本：" && cecho -c 'magenta' "自动部署脚本 Ver.${SCRIPT_VERSION}"
+    local loginSucce=`docker logs ${fvttname} 2>&1 | grep 'Successfully logged in as'`
     local loginTries=`docker logs ${fvttname} 2>/dev/null | grep 'Using FOUNDRY_USERNAME and FOUNDRY_PASSWORD to authenticate' | wc -l`
     information -n "FoundryVTT  登录状态："
-    [ "${loginTries:-0}" -gt 3 ] && error "登录失败" || { [ "${loginTries:-0}" -eq 1 ] && ecyan "登录成功" || warning "未尝试登入"; }
+    [ -n "$loginSucce" ] && ecyan "登录成功" || { [ "${loginTries:-0}" -gt 1 ] && error "登录失败" || warning "未尝试登入";  }
     information -n "FoundryVTT  脚本配置：" && [ -f "$config" ] && ecyan "已存储安装参数" || warning "未存储安装参数"
     # 没有完成安装，但是有在下载，尾部应当是最新下载状态
     [ -z "$installing" -a -n "$downloading" ] && information "FoundryVTT  下载速度：" || information "FoundryVTT  最新日志："
