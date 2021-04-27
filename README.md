@@ -19,7 +19,7 @@ FoundryVTT 部署脚本
 
 *如果脚本需要更新，同样使用以下命令对**脚本**进行更新*
 ```bash
-wget -O fvtt.sh https://gitee.com/mitchx7/FoundryDeploy/raw/master/fvtt.sh && sudo chmod +x fvtt.sh
+wget -O fvtt.sh https://fvtt-cn.coding.net/p/FoundryDeploy/d/FoundryDeploy/git/raw/master/fvtt.sh && sudo chmod +x fvtt.sh
 ```
 
 ## 安装
@@ -39,7 +39,7 @@ sudo ./fvtt.sh restart
 ```bash
 sudo ./fvtt.sh remove
 ```
-删除容器后，再运行（此处最好直接指定新的版本号，如 `0.7.5`）：
+删除容器后，再运行（此处最好直接指定新的版本号，如 `0.7.9`）：
 ```bash
 sudo ./fvtt.sh recreate
 ```
