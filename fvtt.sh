@@ -2,7 +2,7 @@
 
 # FoundryVTT 安装脚本默认参数
 
-SCRIPT_VERSION="1.6.0"
+SCRIPT_VERSION="1.6.1"
 
 # 容器名
 fvttname="fvtt"
@@ -141,7 +141,7 @@ can_curl_google() {
     if [ "$ret_code" -eq "200" ]; then
         echo ""
     else
-        echo "docker.mirrors.ustc.edu.cn/"
+        echo "FAILED"
     fi
 }
 # ---------------------
@@ -296,18 +296,23 @@ EOF
 # 第三步，拉取镜像
 information "拉取需要使用到的镜像（境内服务器可能较慢，耐心等待）"
 
-dockermirror=`can_curl_google`
-[ "${FORCE_GLO,,}" = true ] && dockermirror=""
+canGoogle=`can_curl_google`
 
-[ -n "$dockermirror" ] && warning "切换为 USTC Docker Hub 镜像源（境内加速）" || warning "使用默认的官方 Docker Hub 源"
+if [ -n "$canGoogle" ]; then
+    warning "部署 DaoCloud Docker 公共镜像源（境内加速）"
+    curl -fsSL https://get.daocloud.io/daotools/set_mirror.sh | sh -s http://f1361db2.m.daocloud.io
+    systemctl restart docker
+else
+    warning "使用默认的官方 Docker Hub 源"
+fi
 
-docker pull ${dockermirror}${fvttimage} && docker tag ${dockermirror}${fvttimage} ${fvttimage} && docker image inspect ${fvttimage} >/dev/null 2>&1 && success "拉取 FoundryVTT 成功" || { error "错误：拉取 FoundryVTT 失败" ; exit 3 ; }
-docker pull ${dockermirror}${caddyimage} && docker tag ${dockermirror}${caddyimage} ${caddyimage} && docker image inspect ${caddyimage} >/dev/null 2>&1 && success "拉取 Caddy 成功" || { error "错误：拉取 Caddy 失败" ; exit 3 ; }
+docker pull ${fvttimage} && docker image inspect ${fvttimage} >/dev/null 2>&1 && success "拉取 FoundryVTT 成功" || { error "错误：拉取 FoundryVTT 失败" ; exit 3 ; }
+docker pull ${caddyimage} && docker image inspect ${caddyimage} >/dev/null 2>&1 && success "拉取 Caddy 成功" || { error "错误：拉取 Caddy 失败" ; exit 3 ; }
 if [ "$fbyn" != "n" -a "$fbyn" != "N" ]; then
-    docker pull ${dockermirror}${fbimage} && docker tag ${dockermirror}${fbimage} ${fbimage} && docker image inspect ${fbimage} >/dev/null 2>&1 && success "拉取 FileBrowser 成功" || { error "错误：拉取 FileBrowser 失败" ; exit 3 ; }
+    docker pull ${fbimage} && docker image inspect ${fbimage} >/dev/null 2>&1 && success "拉取 FileBrowser 成功" || { error "错误：拉取 FileBrowser 失败" ; exit 3 ; }
 fi
 if [ "$dashyn" == "y" -o "$dashyn" == "Y" ]; then
-    docker pull ${dockermirror}${dashimage} && docker tag ${dockermirror}${dashimage} ${dashimage} && docker image inspect ${dashimage} >/dev/null 2>&1 && success "拉取 Portainer 成功" || { error "错误：拉取 Portainer 失败" ; exit 3 ; }
+    docker pull ${dashimage} && docker image inspect ${dashimage} >/dev/null 2>&1 && success "拉取 Portainer 成功" || { error "错误：拉取 Portainer 失败" ; exit 3 ; }
 fi
 
 # 第四步，开始部署
@@ -420,7 +425,7 @@ fvttrun="${fvttrun}-e FOUNDRY_MINIFY_STATIC_FILES='true' "
 [ -n "$adminpass" ] && fvttrun="${fvttrun}-e FOUNDRY_ADMIN_KEY='${adminpass}' "
 [ -n "$domain" ] && fvttrun="${fvttrun}-e FOUNDRY_HOSTNAME='${domain}' -e FOUNDRY_PROXY_SSL='true' -e FOUNDRY_PROXY_PORT='443' "
 [ -z "$domain" ] && fvttrun="${fvttrun}-e FOUNDRY_PROXY_PORT='${fvttport}' "
-[ -n "$dockermirror" ] && fvttrun="${fvttrun}-e CONTAINER_PATCH_URLS='https://fvtt-cn.coding.net/p/FoundryDeploy/d/FoundryDeploy/git/raw/master/patches/PATCH_GHProxy.sh' "
+[ -n "$canGoogle" ] && fvttrun="${fvttrun}-e CONTAINER_PATCH_URLS='https://fvtt-cn.coding.net/p/FoundryDeploy/d/FoundryDeploy/git/raw/master/patches/PATCH_GHProxy.sh' "
 fvttrun="${fvttrun} ${fvttimage}"
 eval $fvttrun && docker container inspect $fvttname >/dev/null 2>&1 && success "FoundryVTT 容器启动成功" || { error "错误：FoundryVTT 容器启动失败" ; exit 7 ; }
 
@@ -574,11 +579,7 @@ check() {
 }
 
 do_optim() {
-    dockermirror=`can_curl_google`
-    [ "${FORCE_GLO,,}" = true ] && dockermirror=""
-
-    [ -n "$dockermirror" ] && warning "切换为 USTC Docker Hub 镜像源（境内加速）" || warning "使用默认的官方 Docker Hub 源"
-    docker pull ${dockermirror}${optimimage} && docker tag ${dockermirror}${optimimage} ${optimimage} && docker image inspect ${optimimage} >/dev/null 2>&1 && success "拉取 ImageOptim 成功" || { error "错误：拉取 ImageOptim 失败" ; exit 101 ; }
+    docker pull ${optimimage} && docker image inspect ${optimimage} >/dev/null 2>&1 && success "拉取 ImageOptim 成功" || { error "错误：拉取 ImageOptim 失败" ; exit 101 ; }
     
     # 运行，忽略 modules/systems
     docker volume create ${optimempty} || warning "警告：创建挂载 ${optimempty} 失败。通常是因为已经创建，可无视该警告"
