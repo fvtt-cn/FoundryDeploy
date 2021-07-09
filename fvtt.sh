@@ -2,7 +2,7 @@
 
 # FoundryVTT 安装脚本默认参数
 
-SCRIPT_VERSION="1.6.1"
+SCRIPT_VERSION="1.6.2"
 
 # 容器名
 fvttname="fvtt"
@@ -294,6 +294,7 @@ dashdomain="${dashdomain}"
 EOF
 
 # 第三步，拉取镜像
+if [ "${PULL_SKIP,,}" != true ]; then
 information "拉取需要使用到的镜像（境内服务器可能较慢，耐心等待）"
 
 canGoogle=`can_curl_google`
@@ -313,6 +314,7 @@ if [ "$fbyn" != "n" -a "$fbyn" != "N" ]; then
 fi
 if [ "$dashyn" == "y" -o "$dashyn" == "Y" ]; then
     docker pull ${dashimage} && docker image inspect ${dashimage} >/dev/null 2>&1 && success "拉取 Portainer 成功" || { error "错误：拉取 Portainer 失败" ; exit 3 ; }
+fi
 fi
 
 # 第四步，开始部署
