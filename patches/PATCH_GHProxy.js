@@ -13,7 +13,7 @@ for (let file of files) {
     console.log(`Applying GHProxy Patch to ${file}`);
     let fileContent = fs.readFileSync(file, 'utf8');
     fileContent = fileContent.replace(/(const(.(?<!const))+?await fetch\((.+?)(?=,))/g,
-      "if(!$3.includes('ghproxy.com/')&&($3.includes('github.com/')||$3.includes('raw.githubusercontent.com/')))$3='https://ghproxy.com/'+$3;$1");
+      "if(!$3.includes('cdn.sbea.in/')&&!$3.includes('ghproxy.com/')&&($3.includes('github.com/')||$3.includes('raw.githubusercontent.com/')))$3='https://ghproxy.com/'+$3;$1");
     fs.writeFileSync(file, fileContent);
   }
 }
