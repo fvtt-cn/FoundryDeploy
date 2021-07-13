@@ -2,7 +2,7 @@
 
 # FoundryVTT 安装脚本默认参数
 
-SCRIPT_VERSION="1.6.2"
+SCRIPT_VERSION="1.6.3"
 
 # 容器名
 fvttname="fvtt"
@@ -427,7 +427,7 @@ fvttrun="${fvttrun}-e FOUNDRY_MINIFY_STATIC_FILES='true' "
 [ -n "$adminpass" ] && fvttrun="${fvttrun}-e FOUNDRY_ADMIN_KEY='${adminpass}' "
 [ -n "$domain" ] && fvttrun="${fvttrun}-e FOUNDRY_HOSTNAME='${domain}' -e FOUNDRY_PROXY_SSL='true' -e FOUNDRY_PROXY_PORT='443' "
 [ -z "$domain" ] && fvttrun="${fvttrun}-e FOUNDRY_PROXY_PORT='${fvttport}' "
-[ -n "$canGoogle" ] && fvttrun="${fvttrun}-e CONTAINER_PATCH_URLS='https://fvtt-cn.coding.net/p/FoundryDeploy/d/FoundryDeploy/git/raw/master/patches/PATCH_GHProxy.sh' "
+[ -n "$canGoogle" -a "${FORCE_GLO,,}" != true ] && fvttrun="${fvttrun}-e CONTAINER_PATCH_URLS='https://fvtt-cn.coding.net/p/FoundryDeploy/d/FoundryDeploy/git/raw/master/patches/PATCH_GHProxy.sh' "
 fvttrun="${fvttrun} ${fvttimage}"
 eval $fvttrun && docker container inspect $fvttname >/dev/null 2>&1 && success "FoundryVTT 容器启动成功" || { error "错误：FoundryVTT 容器启动失败" ; exit 7 ; }
 
