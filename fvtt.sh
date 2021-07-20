@@ -353,7 +353,7 @@ else
 fi
 
 # 写 Caddyfile 标记头部
-echo >> caddyfile
+echo >> $caddyfile
 echo "#FvttCnScriptStart" >> $caddyfile
 
 # Foundry VTT 反代
