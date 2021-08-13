@@ -2,7 +2,7 @@
 
 # FoundryVTT 安装脚本默认参数
 
-SCRIPT_VERSION="1.6.3"
+SCRIPT_VERSION="1.6.4"
 
 # 容器名
 fvttname="fvtt"
@@ -411,7 +411,7 @@ echoLine
 # Caddy，映射 UDP 端口，方便启用 HTTP/3
 caddyrun="docker run -d --name=${caddyname} --restart=unless-stopped --network=${bridge} -c=${caddycpu} -v ${caddyvolume}:/data -v ${caddyfile}:/etc/caddy/Caddyfile "
 caddyrun="${caddyrun}-p ${fvttport}:${fvttport} -p ${fvttport}:${fvttport}/udp -p ${fbport}:${fbport} -p ${fbport}:${fbport}/udp -p ${dashport}:${dashport} -p ${dashport}:${dashport}/udp "
-[ -n "$domain" -o -n "$fbdomain" ] && caddyrun="${caddyrun}-p 80:80 -p 80:80/udp -p 443:443 -p 443:443/udp "
+[ -n "$domain" -o -n "$fbdomain" -o -n "$cdndomain" ] && caddyrun="${caddyrun}-p 80:80 -p 80:80/udp -p 443:443 -p 443:443/udp "
 caddyrun="${caddyrun} ${caddyimage}"
 eval $caddyrun && docker container inspect $caddyname >/dev/null 2>&1 && success "Caddy 容器启动成功" || { error "错误：Caddy 容器启动失败" ; exit 7 ; }
 
